@@ -1,0 +1,1627 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Portale Operativo v3 — P.M. San Lorenzo</title>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+<!-- jsPDF -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+
+<!-- PDF.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+
+<!-- Chart.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=DM+Mono:wght@400;500&display=swap');
+
+:root {
+  --bg:#0d0d12;--bg2:#13131a;--bg3:#1a1a24;--bg4:#22222f;
+  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.12);
+  --text:#e8e8f0;--text2:#9090a8;--text3:#5a5a70;
+  --accent:#4f8ef7;--accent2:#6fa3ff;
+  --green:#34c97a;--orange:#f5a623;--red:#e05252;--purple:#9b7cf4;
+  --glass:rgba(255,255,255,0.04);--glass2:rgba(255,255,255,0.08);
+  --shadow:0 8px 32px rgba(0,0,0,0.5);--r:12px;--r2:8px;--sidebar-w:240px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(--text);height:100vh;overflow:hidden;display:flex}
+
+/* SIDEBAR */
+#sidebar{width:var(--sidebar-w);min-width:var(--sidebar-w);background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;height:100vh;overflow-y:auto;z-index:10}
+.sidebar-header{padding:20px 16px 16px;border-bottom:1px solid var(--border)}
+.sidebar-logo{display:flex;align-items:center;gap:10px;margin-bottom:4px}
+.shield{width:32px;height:32px;background:linear-gradient(135deg,var(--accent),#2a5ccc);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 4px 12px rgba(79,142,247,0.3)}
+.sidebar-title{font-size:13px;font-weight:700;color:var(--text);line-height:1.2}
+.sidebar-sub{font-size:10px;color:var(--text3);font-weight:400;margin-top:2px}
+.sidebar-section{padding:16px 12px 8px}
+.sidebar-section-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:var(--text3);padding:0 4px;margin-bottom:6px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:var(--r2);cursor:pointer;transition:all .15s;margin-bottom:2px;font-size:13px;font-weight:500;color:var(--text2);user-select:none}
+.nav-item:hover{background:var(--glass2);color:var(--text)}
+.nav-item.active{background:rgba(79,142,247,0.15);color:var(--accent2)}
+.nav-item .nav-icon{font-size:15px;width:18px;text-align:center}
+.nav-badge{margin-left:auto;background:var(--accent);color:#fff;font-size:9px;font-weight:700;padding:1px 5px;border-radius:10px}
+.nav-fb-dot{width:7px;height:7px;border-radius:50%;background:var(--text3);margin-left:auto;transition:background .3s}
+.nav-fb-dot.connected{background:var(--green);box-shadow:0 0 6px rgba(52,201,122,0.6)}
+.sidebar-footer{margin-top:auto;padding:12px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:8px}
+.api-key-area{background:var(--bg3);border-radius:var(--r2);padding:10px 12px}
+.api-key-label{font-size:10px;color:var(--text3);margin-bottom:6px;display:flex;align-items:center;gap:4px}
+.api-key-input{width:100%;background:var(--bg4);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'DM Mono',monospace;font-size:10px;padding:6px 8px;outline:none}
+.api-key-input:focus{border-color:var(--accent)}
+
+/* MAIN */
+#main{flex:1;display:flex;flex-direction:column;height:100vh;overflow:hidden}
+.topbar{height:56px;min-height:56px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 24px;gap:16px}
+.topbar-title{font-size:15px;font-weight:600;color:var(--text)}
+.topbar-sub{font-size:12px;color:var(--text3);margin-left:4px}
+.topbar-spacer{flex:1}
+.topbar-date{font-size:11px;color:var(--text3);font-family:'DM Mono',monospace}
+.topbar-actions{display:flex;gap:8px}
+.content{flex:1;overflow-y:auto;padding:24px}
+.module{display:none}.module.active{display:block}
+
+/* CARDS */
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:20px;margin-bottom:16px}
+.card-header{display:flex;align-items:center;gap:10px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--border)}
+.card-icon{width:34px;height:34px;border-radius:var(--r2);display:flex;align-items:center;justify-content:center;font-size:16px}
+.card-title{font-size:14px;font-weight:600}.card-desc{font-size:11px;color:var(--text3);margin-top:2px}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+
+/* FORM */
+label{display:block;font-size:11px;font-weight:600;color:var(--text2);margin-bottom:5px;text-transform:uppercase;letter-spacing:0.5px}
+input[type=text],input[type=date],input[type=number],input[type=password],textarea,select{width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r2);color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;padding:9px 12px;outline:none;transition:border .15s;margin-bottom:14px}
+input:focus,textarea:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(79,142,247,0.12)}
+textarea{resize:vertical;min-height:80px;line-height:1.5}
+select option{background:var(--bg3)}
+.form-row{display:grid;gap:12px;margin-bottom:0}
+.form-row.cols-2{grid-template-columns:1fr 1fr}
+.form-row.cols-3{grid-template-columns:1fr 1fr 1fr}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:7px;padding:9px 16px;border-radius:var(--r2);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;border:none;transition:all .15s}
+.btn-primary{background:var(--accent);color:#fff}.btn-primary:hover{background:var(--accent2);transform:translateY(-1px)}
+.btn-ghost{background:var(--glass2);color:var(--text2);border:1px solid var(--border)}.btn-ghost:hover{background:var(--bg4);color:var(--text)}
+.btn-green{background:rgba(52,201,122,0.15);color:var(--green);border:1px solid rgba(52,201,122,0.2)}.btn-green:hover{background:rgba(52,201,122,0.25)}
+.btn-red{background:rgba(224,82,82,0.15);color:var(--red);border:1px solid rgba(224,82,82,0.2)}
+.btn-orange{background:rgba(245,166,35,0.12);color:var(--orange);border:1px solid rgba(245,166,35,0.2)}
+.btn-purple{background:rgba(155,124,244,0.12);color:var(--purple);border:1px solid rgba(155,124,244,0.2)}
+.btn-sm{padding:6px 12px;font-size:12px}
+.btn-block{width:100%;justify-content:center}
+.btn-group{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+
+/* AI BOX */
+.ai-box{background:linear-gradient(135deg,rgba(79,142,247,0.08),rgba(155,124,244,0.06));border:1px solid rgba(79,142,247,0.2);border-radius:var(--r);padding:16px;margin-bottom:14px}
+.ai-box-header{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.ai-spark{width:24px;height:24px;background:linear-gradient(135deg,var(--accent),var(--purple));border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;box-shadow:0 2px 8px rgba(79,142,247,0.3)}
+.ai-box-title{font-size:12px;font-weight:600;color:var(--accent2)}
+.ai-prompt-row{display:flex;gap:8px}
+.ai-input{flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r2);color:var(--text);font-family:'DM Sans',sans-serif;font-size:12px;padding:8px 12px;outline:none}
+.ai-input:focus{border-color:var(--accent)}
+.ai-output{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r2);padding:12px;font-size:12px;line-height:1.7;color:var(--text);margin-top:10px;min-height:60px;white-space:pre-wrap;display:none}
+.ai-loading{display:none;align-items:center;gap:8px;color:var(--accent);font-size:12px;margin-top:8px}
+.dot-pulse span{display:inline-block;width:5px;height:5px;background:var(--accent);border-radius:50%;margin:0 2px;animation:pulse 1.2s ease-in-out infinite}
+.dot-pulse span:nth-child(2){animation-delay:.2s}.dot-pulse span:nth-child(3){animation-delay:.4s}
+@keyframes pulse{0%,80%,100%{transform:scale(.6);opacity:.4}40%{transform:scale(1);opacity:1}}
+
+/* DROP ZONE */
+.drop-zone{border:2px dashed var(--border2);border-radius:var(--r);padding:24px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:14px}
+.drop-zone:hover,.drop-zone.dragover{border-color:var(--accent);background:rgba(79,142,247,0.05)}
+.drop-zone-icon{font-size:28px;margin-bottom:8px}
+.drop-zone-text{font-size:12px;color:var(--text2)}.drop-zone-sub{font-size:11px;color:var(--text3);margin-top:4px}
+.drop-zone-loaded{background:rgba(52,201,122,0.06);border-color:rgba(52,201,122,0.3)}
+.drop-zone-loaded .drop-zone-icon{color:var(--green)}
+
+/* PDF LOADING BAR */
+.pdf-progress{background:var(--bg3);border-radius:4px;height:4px;margin-top:8px;overflow:hidden;display:none}
+.pdf-progress-bar{height:100%;background:linear-gradient(90deg,var(--accent),var(--purple));border-radius:4px;transition:width .3s}
+
+/* DOCUMENT OUTPUT — Amministrativa 2.0 */
+.doc-output{
+  background:#fff;border-radius:var(--r);
+  padding:28px 36px 36px;
+  color:#1a1a1a;
+  font-family:'Cambria','Georgia',serif;
+  font-size:13px;line-height:1.8;
+  margin-top:16px;display:none;
+  min-height:400px;box-shadow:var(--shadow);
+  position:relative;
+}
+/* Header ufficiale Amministrativa 2.0 */
+.doc-header-amm2{
+  display:flex;justify-content:space-between;align-items:flex-start;
+  border-bottom:2.5px solid #0F9ED5;
+  padding-bottom:10px;margin-bottom:18px;
+}
+.doc-header-left{}
+.doc-header-comune{
+  font-size:13px;font-weight:bold;
+  text-transform:uppercase;letter-spacing:1px;
+  color:#1A3A6B;font-family:'Cambria',serif;
+}
+.doc-header-area{
+  font-size:11px;font-weight:bold;
+  color:#0F9ED5;margin-top:3px;
+  text-transform:uppercase;letter-spacing:0.5px;
+  font-family:'Cambria',serif;
+}
+.doc-header-servizio{
+  font-size:10px;color:#555;
+  font-style:italic;margin-top:1px;
+  font-family:'Cambria',serif;
+}
+.doc-header-uo{
+  font-size:10px;color:#555;
+  font-style:italic;font-family:'Cambria',serif;
+}
+.doc-header-ufficio{
+  font-size:10px;font-weight:bold;
+  color:#1a1a1a;font-style:italic;
+  margin-top:2px;font-family:'Cambria',serif;
+}
+.doc-header-right{
+  text-align:right;font-family:'Cambria',serif;
+}
+.doc-header-badge{
+  width:44px;height:44px;
+  background:linear-gradient(135deg,#1A3A6B,#0F9ED5);
+  border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:20px;margin-left:auto;margin-bottom:6px;
+  box-shadow:0 2px 8px rgba(15,158,213,0.3);
+}
+.doc-header-prot{font-size:11px;color:#333;line-height:1.6;}
+.doc-footer-amm2{
+  margin-top:32px;padding-top:8px;
+  border-top:1px solid #ccc;
+  font-size:9px;color:#888;
+  font-family:'Cambria',serif;
+  font-style:italic;text-align:center;
+}
+.doc-oggetto{font-weight:bold;margin:14px 0 16px;font-size:13px;text-transform:uppercase;font-family:'Cambria',serif}
+.doc-body{white-space:pre-wrap;font-family:'Cambria',serif}
+.doc-firma{margin-top:32px;text-align:right;font-size:12px;font-family:'Cambria',serif}
+.doc-toolbar{display:flex;gap:8px;margin-bottom:12px;background:var(--bg3);padding:8px;border-radius:var(--r2)}
+
+/* ARCHIVIO */
+.archivio-item{display:flex;align-items:flex-start;gap:12px;padding:12px;border:1px solid var(--border);border-radius:var(--r2);margin-bottom:8px;background:var(--bg3);transition:all .15s;cursor:pointer}
+.archivio-item:hover{border-color:var(--accent);background:rgba(79,142,247,0.05)}
+.archivio-type-dot{width:8px;height:8px;border-radius:50%;margin-top:4px;flex-shrink:0}
+.archivio-content{flex:1;min-width:0}
+.archivio-title{font-size:13px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.archivio-meta{font-size:11px;color:var(--text3);margin-top:2px;display:flex;gap:10px}
+.archivio-actions{display:flex;gap:6px;flex-shrink:0}
+.archivio-empty{padding:32px;text-align:center;color:var(--text3);font-size:13px}
+
+/* TILES */
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-bottom:16px}
+.tile{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:16px;cursor:pointer;transition:all .2s;text-align:center;user-select:none}
+.tile:hover{border-color:var(--accent);background:rgba(79,142,247,0.08);transform:translateY(-2px)}
+.tile-icon{font-size:24px;margin-bottom:8px}.tile-label{font-size:11px;font-weight:600;color:var(--text2);line-height:1.3}
+
+/* BADGE */
+.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;margin-right:4px}
+.badge-blue{background:rgba(79,142,247,0.15);color:var(--accent2)}
+.badge-green{background:rgba(52,201,122,0.15);color:var(--green)}
+.badge-orange{background:rgba(245,166,35,0.15);color:var(--orange)}
+.badge-red{background:rgba(224,82,82,0.15);color:var(--red)}
+.badge-purple{background:rgba(155,124,244,0.15);color:var(--purple)}
+
+/* STATS */
+.stat-card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:16px 20px;text-align:center}
+.stat-num{font-size:28px;font-weight:700;color:var(--accent2)}.stat-label{font-size:11px;color:var(--text3);margin-top:4px}
+.stat-trend{font-size:10px;margin-top:4px}
+
+/* SEARCH */
+.search-bar{display:flex;gap:8px;margin-bottom:16px}
+.search-input{flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r2);color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;padding:9px 14px;outline:none}
+.search-input:focus{border-color:var(--accent)}
+
+/* CHIPS */
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.chip{background:var(--bg3);border:1px solid var(--border2);border-radius:20px;padding:4px 12px;font-size:11px;color:var(--text2);cursor:pointer;transition:all .15s}
+.chip:hover{border-color:var(--accent);color:var(--accent2);background:rgba(79,142,247,0.08)}
+.chip.active{border-color:var(--accent);color:var(--accent2);background:rgba(79,142,247,0.12)}
+
+/* VERBALE */
+.verbale-section{border-left:3px solid var(--accent);padding-left:14px;margin-bottom:16px}
+.verbale-section-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--accent);margin-bottom:8px}
+.norma-box{background:rgba(155,124,244,0.08);border:1px solid rgba(155,124,244,0.2);border-radius:var(--r);padding:14px;margin-bottom:14px}
+.norma-box-title{font-size:11px;font-weight:700;color:var(--purple);margin-bottom:8px}
+
+/* DIVIDER */
+.divider{height:1px;background:var(--border);margin:16px 0}
+
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(4px);z-index:100;display:none;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:16px;width:600px;max-width:95vw;max-height:90vh;overflow-y:auto;padding:28px;box-shadow:0 24px 80px rgba(0,0,0,0.7)}
+.modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+.modal-title{font-size:16px;font-weight:700}
+.modal-close{width:28px;height:28px;background:var(--bg4);border-radius:50%;border:none;color:var(--text2);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center}
+.modal-close:hover{background:var(--red);color:#fff}
+
+/* TOAST */
+#toast{position:fixed;bottom:24px;right:24px;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r);padding:12px 18px;font-size:13px;z-index:999;display:none;box-shadow:var(--shadow);max-width:320px;gap:10px}
+#toast.show{display:flex;align-items:center}
+#toast.success{border-color:rgba(52,201,122,0.4)}
+#toast.error{border-color:rgba(224,82,82,0.4)}
+
+/* FIREBASE STATUS */
+.fb-status{display:flex;align-items:center;gap:6px;font-size:10px;padding:6px 10px;border-radius:6px;background:var(--bg4);border:1px solid var(--border);cursor:pointer}
+.fb-dot{width:6px;height:6px;border-radius:50%;background:var(--text3)}
+.fb-dot.ok{background:var(--green);box-shadow:0 0 5px rgba(52,201,122,0.5)}
+.fb-dot.err{background:var(--red)}
+
+/* CHARTS */
+.chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.chart-card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:16px}
+.chart-card-full{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:16px;margin-bottom:16px}
+.chart-title{font-size:12px;font-weight:600;color:var(--text2);margin-bottom:12px;text-transform:uppercase;letter-spacing:0.5px}
+.chart-container{position:relative;height:220px}
+.chart-container-wide{position:relative;height:180px}
+.kpi-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:16px}
+.kpi-box{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r2);padding:12px 8px;text-align:center}
+.kpi-num{font-size:22px;font-weight:700;color:var(--accent2)}
+.kpi-label{font-size:9px;color:var(--text3);margin-top:3px;text-transform:uppercase;letter-spacing:0.5px;line-height:1.3}
+.chart-period-selector{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+.period-entry{background:var(--bg4);border:1px solid var(--border2);border-radius:var(--r2);padding:10px;margin-bottom:10px}
+.period-entry-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.period-label{font-size:12px;font-weight:600;color:var(--text)}
+.period-del{background:none;border:none;color:var(--text3);cursor:pointer;font-size:14px;padding:2px 6px}
+.period-del:hover{color:var(--red)}
+
+/* PRINT */
+@media print{
+  #sidebar,.topbar,.no-print,#toast{display:none!important}
+  .doc-output{display:block!important;background:#fff;color:#000;box-shadow:none;padding:2cm;margin:0}
+  body{background:#fff;overflow:auto;height:auto}
+  #main{height:auto;overflow:visible}
+  .content{overflow:visible}
+  .module{display:block!important}
+}
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--bg4);border-radius:10px}
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<nav id="sidebar">
+  <div class="sidebar-header">
+    <div class="sidebar-logo">
+      <div class="shield">⚖️</div>
+      <div><div class="sidebar-title">Portale Operativo v2</div><div class="sidebar-sub">P.M. Napoli — U.O. San Lorenzo</div></div>
+    </div>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Strumenti</div>
+    <div class="nav-item active" onclick="switchModule('dashboard')"><span class="nav-icon">🏠</span>Dashboard</div>
+    <div class="nav-item" onclick="switchModule('documenti')"><span class="nav-icon">📄</span>Documenti Liberi</div>
+    <div class="nav-item" onclick="switchModule('atipg')"><span class="nav-icon">⚖️</span>Atti P.G.</div>
+    <div class="nav-item" onclick="switchModule('sequestri')"><span class="nav-icon">🔒</span>Sequestri</div>
+    <div class="nav-item" onclick="switchModule('modulistica')"><span class="nav-icon">📋</span>Modulistica</div>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Analisi & Memoria</div>
+    <div class="nav-item" onclick="switchModule('statistiche')"><span class="nav-icon">📊</span>Statistiche</div>
+    <div class="nav-item" onclick="switchModule('archivio');loadArchivio()"><span class="nav-icon">🗂️</span>Archivio <span class="nav-badge" id="archivioCount">0</span></div>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Utilità</div>
+    <div class="nav-item" onclick="switchModule('ai_libre')"><span class="nav-icon">✨</span>AI Libera<span class="nav-badge">AI</span></div>
+    <div class="nav-item" onclick="openSettings()"><span class="nav-icon">⚙️</span>Impostazioni<span class="nav-fb-dot" id="fbNavDot"></span></div>
+  </div>
+  <div class="sidebar-footer">
+    <div class="api-key-area">
+      <div class="api-key-label">🔑 API Key Anthropic</div>
+      <input class="api-key-input" type="password" id="apiKeyInput" placeholder="sk-ant-api03-..." autocomplete="off">
+    </div>
+    <div class="fb-status" id="fbStatus" onclick="openSettings()">
+      <div class="fb-dot" id="fbDot"></div>
+      <span id="fbStatusText">Firebase: non configurato</span>
+    </div>
+  </div>
+</nav>
+
+<!-- MAIN -->
+<div id="main">
+  <div class="topbar">
+    <span class="topbar-title" id="topbarTitle">Dashboard</span>
+    <span class="topbar-sub" id="topbarSub"></span>
+    <div class="topbar-spacer"></div>
+    <div class="topbar-actions no-print">
+      <button class="btn btn-sm btn-ghost" onclick="openSettings()">⚙️</button>
+    </div>
+    <span class="topbar-date" id="topbarDate"></span>
+  </div>
+  <div class="content">
+
+    <!-- ══════ DASHBOARD ══════ -->
+    <div id="mod-dashboard" class="module active">
+      <div class="grid-4" style="margin-bottom:16px">
+        <div class="stat-card"><div class="stat-num" id="cntDocs">0</div><div class="stat-label">Documenti</div></div>
+        <div class="stat-card"><div class="stat-num" id="cntVerbali">0</div><div class="stat-label">Verbali/Atti PG</div></div>
+        <div class="stat-card"><div class="stat-num" id="cntSeq">0</div><div class="stat-label">Sequestri</div></div>
+        <div class="stat-card"><div class="stat-num" id="cntAll">0</div><div class="stat-label">Totale archivio</div></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-icon" style="background:rgba(79,142,247,0.15)">🚀</div><div><div class="card-title">Accesso Rapido</div><div class="card-desc">Seleziona il tipo di documento</div></div></div>
+        <div class="tiles">
+          <div class="tile" onclick="switchModule('documenti');setDocTipo('relazione')"><div class="tile-icon">📝</div><div class="tile-label">Relazione di Servizio</div></div>
+          <div class="tile" onclick="switchModule('documenti');setDocTipo('lettera')"><div class="tile-icon">✉️</div><div class="tile-label">Lettera Trasmissione</div></div>
+          <div class="tile" onclick="switchModule('documenti');setDocTipo('risposta')"><div class="tile-icon">↩️</div><div class="tile-label">Risposta Esposto</div></div>
+          <div class="tile" onclick="switchModule('atipg');setActType('sit')"><div class="tile-icon">🗣️</div><div class="tile-label">Verbale S.I.T.</div></div>
+          <div class="tile" onclick="switchModule('atipg');setActType('spontanee')"><div class="tile-icon">📣</div><div class="tile-label">Dich. Spontanee</div></div>
+          <div class="tile" onclick="switchModule('atipg');setActType('annotazione')"><div class="tile-icon">🔍</div><div class="tile-label">Annotazione P.G.</div></div>
+          <div class="tile" onclick="switchModule('sequestri');setSeqType('merce')"><div class="tile-icon">📦</div><div class="tile-label">Seq. Merce</div></div>
+          <div class="tile" onclick="switchModule('sequestri');setSeqType('attrezzature')"><div class="tile-icon">🔧</div><div class="tile-label">Seq. Attrezzature</div></div>
+          <div class="tile" onclick="switchModule('ai_libre')"><div class="tile-icon">✨</div><div class="tile-label">AI Libera</div></div>
+          <div class="tile" onclick="switchModule('archivio');loadArchivio()"><div class="tile-icon">🗂️</div><div class="tile-label">Archivio</div></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-icon" style="background:rgba(52,201,122,0.15)">📌</div><div><div class="card-title">Ultimi documenti</div><div class="card-desc">Caricati da Firestore</div></div></div>
+        <div id="recentDocs"><div class="archivio-empty">Configura Firebase per vedere l'archivio, oppure genera il primo documento.</div></div>
+      </div>
+    </div>
+
+    <!-- ══════ DOCUMENTI LIBERI ══════ -->
+    <div id="mod-documenti" class="module">
+      <div class="card">
+        <div class="card-header"><div class="card-icon" style="background:rgba(79,142,247,0.15)">📄</div><div><div class="card-title">Generatore Documenti</div><div class="card-desc">Relazioni, lettere, trasmissioni, risposte — assistenza AI + esporta PDF</div></div></div>
+        <div class="form-row cols-3" style="margin-bottom:14px">
+          <div><label>Tipo Documento</label>
+            <select id="docTipo">
+              <option value="relazione">Relazione di Servizio</option>
+              <option value="lettera">Lettera di Trasmissione</option>
+              <option value="risposta">Risposta a Esposto/Istanza</option>
+              <option value="nota">Nota Interna / Interufficio</option>
+              <option value="parere">Parere Tecnico</option>
+              <option value="rapporto">Rapporto al Comandante</option>
+              <option value="informativa">Informativa/Notizia di Reato</option>
+              <option value="diffida">Diffida</option>
+              <option value="libero">Documento Libero</option>
+            </select>
+          </div>
+          <div><label>N° Protocollo</label><input type="text" id="docProt" placeholder="es. 12345/2025"></div>
+          <div><label>Data</label><input type="date" id="docData"></div>
+        </div>
+        <div class="form-row cols-2" style="margin-bottom:14px">
+          <div><label>Destinatario / A <span style="color:var(--accent2);font-weight:400;text-transform:none;letter-spacing:0">— usa / per andare a capo</span></label><input type="text" id="docDest" placeholder="es. Al Sig. Sindaco / Comune di Napoli / Piazza del Municipio"></div>
+          <div><label>Per conoscenza <span style="color:var(--accent2);font-weight:400;text-transform:none;letter-spacing:0">— usa / per andare a capo</span></label><input type="text" id="docCC" placeholder="opzionale"></div>
+        </div>
+        <div><label>Oggetto</label><input type="text" id="docOggetto" placeholder="es. Riscontro esposto del cittadino X relativo a..."></div>
+        <div><label>Riferimenti (protocolli, verbali, norme)</label><input type="text" id="docRif" placeholder="es. Verbale n.XX, art. 10 D.Lgs. 222/2016"></div>
+
+        <!-- PDF DROP ZONE -->
+        <label>Documento di riferimento PDF — <span style="color:var(--green);font-size:10px">il testo viene estratto e passato all'AI</span></label>
+        <div class="drop-zone" id="docDropZone" onclick="document.getElementById('docPdfInput').click()">
+          <div class="drop-zone-icon">📎</div>
+          <div class="drop-zone-text">Trascina PDF o clicca per selezionare</div>
+          <div class="drop-zone-sub">PDF.js estrae il testo — l'AI risponde sul contenuto</div>
+          <div class="pdf-progress" id="pdfProgress"><div class="pdf-progress-bar" id="pdfProgressBar" style="width:0%"></div></div>
+        </div>
+        <input type="file" id="docPdfInput" accept=".pdf,.txt" style="display:none" onchange="handleDocPdf(this)">
+
+        <!-- AI -->
+        <div class="ai-box">
+          <div class="ai-box-header"><div class="ai-spark">✨</div><div class="ai-box-title">Assistente AI</div></div>
+          <div class="chips">
+            <div class="chip" onclick="setAiPromptDoc('Genera una relazione formale completa')">Relazione completa</div>
+            <div class="chip" onclick="setAiPromptDoc('Rispondi all\'esposto in modo formale e motivato')">Risposta esposto</div>
+            <div class="chip" onclick="setAiPromptDoc('Redigi lettera di trasmissione degli atti')">Lettera trasmissione</div>
+            <div class="chip" onclick="setAiPromptDoc('Scrivi nota interufficio sintetica')">Nota interna</div>
+            <div class="chip" onclick="setAiPromptDoc('Suggerisci il testo completo basandoti sull\'oggetto')">Suggerisci testo</div>
+            <div class="chip" onclick="setAiPromptDoc('Rispondi al documento PDF allegato in modo formale')">Rispondi al PDF</div>
+          </div>
+          <div class="ai-prompt-row">
+            <input class="ai-input" id="docAiPrompt" placeholder="Descrivi cosa deve contenere il documento...">
+            <button class="btn btn-primary btn-sm" onclick="runDocAI()">⚡ Genera</button>
+          </div>
+          <div class="ai-loading" id="docAiLoading"><div class="dot-pulse"><span></span><span></span><span></span></div> elaborazione...</div>
+          <div class="ai-output" id="docAiSuggestion"></div>
+        </div>
+
+        <div><label>Corpo del documento</label><textarea id="docCorpo" rows="8" placeholder="Inserisci testo o generalo con AI..."></textarea></div>
+        <div class="form-row cols-2" style="margin-bottom:14px">
+          <div><label>Firma</label><input type="text" id="docFirma" value="A.C. Ferrara"></div>
+          <div><label>Qualifica</label><input type="text" id="docQualifica" value="Agente di P.M."></div>
+        </div>
+        <div class="btn-group">
+          <button class="btn btn-primary" onclick="generateDoc()">📄 Genera Documento</button>
+          <button class="btn btn-ghost btn-sm" onclick="clearDocForm()">🗑️ Pulisci</button>
+        </div>
+        <div class="doc-toolbar no-print" id="docToolbar" style="display:none;margin-top:16px">
+          <button class="btn btn-sm btn-green" onclick="exportPDF('docOutput','Documento')">📥 Esporta PDF</button>
+          <button class="btn btn-sm btn-ghost" onclick="window.print()">🖨️ Stampa</button>
+          <button class="btn btn-sm btn-orange" onclick="copyEl('docOutput')">📋 Copia</button>
+          <button class="btn btn-sm btn-ghost" onclick="toggleEdit('docOutput')">✏️ Modifica</button>
+        </div>
+        <div class="doc-output" id="docOutput"></div>
+      </div>
+    </div>
+
+    <!-- ══════ ATTI P.G. ══════ -->
+    <div id="mod-atipg" class="module">
+      <div class="card" style="margin-bottom:12px">
+        <div class="card-header"><div class="card-icon" style="background:rgba(155,124,244,0.15)">⚖️</div><div><div class="card-title">Atti di Polizia Giudiziaria</div></div></div>
+        <div class="tiles">
+          <div class="tile" onclick="setActType('sit')"><div class="tile-icon">🗣️</div><div class="tile-label">Verbale S.I.T.</div></div>
+          <div class="tile" onclick="setActType('spontanee')"><div class="tile-icon">📣</div><div class="tile-label">Dich. Spontanee</div></div>
+          <div class="tile" onclick="setActType('annotazione')"><div class="tile-icon">🔍</div><div class="tile-label">Annotazione P.G.</div></div>
+          <div class="tile" onclick="setActType('cartello')"><div class="tile-icon">🚫</div><div class="tile-label">Cartello Monitorio</div></div>
+          <div class="tile" onclick="setActType('verbale_acc')"><div class="tile-icon">📝</div><div class="tile-label">Verbale Accertamento</div></div>
+          <div class="tile" onclick="setActType('comunicazione_ag')"><div class="tile-icon">⚡</div><div class="tile-label">Com. A.G.</div></div>
+        </div>
+      </div>
+      <div class="card" id="atipgForm"><div id="atipgFormContent"><div style="text-align:center;padding:24px;color:var(--text3);font-size:13px">↑ Seleziona il tipo di atto</div></div></div>
+    </div>
+
+    <!-- ══════ SEQUESTRI ══════ -->
+    <div id="mod-sequestri" class="module">
+      <div class="card" style="margin-bottom:12px">
+        <div class="card-header"><div class="card-icon" style="background:rgba(224,82,82,0.15)">🔒</div><div><div class="card-title">Modelli di Sequestro</div><div class="card-desc">L'AI sviluppa il verbale completo dalla norma</div></div></div>
+        <div class="tiles">
+          <div class="tile" onclick="setSeqType('merce')"><div class="tile-icon">📦</div><div class="tile-label">Seq. Merce</div></div>
+          <div class="tile" onclick="setSeqType('attrezzature')"><div class="tile-icon">🔧</div><div class="tile-label">Seq. Attrezzature</div></div>
+          <div class="tile" onclick="setSeqType('veicolo')"><div class="tile-icon">🚗</div><div class="tile-label">Seq. Veicolo</div></div>
+          <div class="tile" onclick="setSeqType('area')"><div class="tile-icon">🏗️</div><div class="tile-label">Seq. Area</div></div>
+          <div class="tile" onclick="setSeqType('documenti')"><div class="tile-icon">📁</div><div class="tile-label">Seq. Documenti</div></div>
+        </div>
+      </div>
+      <div class="card" id="seqForm"><div style="text-align:center;padding:24px;color:var(--text3);font-size:13px">↑ Seleziona tipo sequestro</div></div>
+    </div>
+
+    <!-- ══════ MODULISTICA ══════ -->
+    <div id="mod-modulistica" class="module">
+      <div class="card">
+        <div class="card-header"><div class="card-icon" style="background:rgba(245,166,35,0.15)">📋</div><div><div class="card-title">Modulistica Personalizzata</div><div class="card-desc">Genera qualsiasi modulo con AI</div></div></div>
+        <div class="tiles">
+          <div class="tile" onclick="runModuloPreset('Genera una diffida formale ad adempiere della Polizia Municipale di Napoli. Usa [CAMPO] per i dati da completare.')"><div class="tile-icon">⚠️</div><div class="tile-label">Diffida</div></div>
+          <div class="tile" onclick="runModuloPreset('Genera un modulo di richiesta documenti ex art.10 L.241/1990 della Polizia Municipale. Usa [CAMPO] per i dati.')"><div class="tile-icon">📤</div><div class="tile-label">Richiesta documenti</div></div>
+          <div class="tile" onclick="runModuloPreset('Genera una convocazione formale presso l\'ufficio di Polizia Municipale U.O. San Lorenzo. Usa [CAMPO] per i dati.')"><div class="tile-icon">📅</div><div class="tile-label">Convocazione</div></div>
+          <div class="tile" onclick="runModuloPreset('Genera un preavviso di applicazione sanzione ex art.17-bis L.689/1981. Usa [CAMPO] per i dati.')"><div class="tile-icon">🔔</div><div class="tile-label">Preavviso sanzione</div></div>
+          <div class="tile" onclick="runModuloPreset('Genera una segnalazione formale ad altro Ente competente (SUAP/ASL/ARPA). Usa [CAMPO] per i dati.')"><div class="tile-icon">📡</div><div class="tile-label">Segnalazione Ente</div></div>
+          <div class="tile" onclick="runModuloPreset('Genera un verbale di sopralluogo / accesso ispettivo della Polizia Municipale. Usa [CAMPO] per i dati.')"><div class="tile-icon">🏠</div><div class="tile-label">Verbale sopralluogo</div></div>
+          <div class="tile" onclick="runModuloPreset('Genera un\'autorizzazione provvisoria con condizioni e prescrizioni. Usa [CAMPO] per i dati.')"><div class="tile-icon">✅</div><div class="tile-label">Autorizzazione provv.</div></div>
+          <div class="tile" onclick="document.getElementById('moduloAiPrompt').focus()"><div class="tile-icon">✨</div><div class="tile-label">Modulo custom AI</div></div>
+        </div>
+        <div class="ai-box">
+          <div class="ai-box-header"><div class="ai-spark">✨</div><div class="ai-box-title">Descrivi qualsiasi modulo — l'AI lo crea</div></div>
+          <div class="ai-prompt-row">
+            <input class="ai-input" id="moduloAiPrompt" placeholder="es. Modulo acquisizione dati commerciante per controllo SCIA + lista documenti da esibire...">
+            <button class="btn btn-primary btn-sm" onclick="runModuloAI()">⚡ Genera</button>
+          </div>
+          <div class="ai-loading" id="moduloAiLoading"><div class="dot-pulse"><span></span><span></span><span></span></div></div>
+          <div class="ai-output" id="moduloAiOutput"></div>
+          <div id="moduloBtnGroup" style="display:none;margin-top:10px">
+            <button class="btn btn-green btn-sm" onclick="useModuloOutput()">📄 Usa come documento</button>
+          </div>
+        </div>
+        <div class="doc-toolbar no-print" id="moduloToolbar" style="display:none;margin-top:16px">
+          <button class="btn btn-sm btn-green" onclick="exportPDF('moduloOutput','Modulo')">📥 Esporta PDF</button>
+          <button class="btn btn-sm btn-ghost" onclick="window.print()">🖨️ Stampa</button>
+          <button class="btn btn-sm btn-orange" onclick="copyEl('moduloOutput')">📋 Copia</button>
+        </div>
+        <div class="doc-output" id="moduloOutput"></div>
+      </div>
+    </div>
+
+    <!-- ══════ STATISTICHE ══════ -->
+    <div id="mod-statistiche" class="module">
+
+      <!-- PERIODO TABS -->
+      <div class="card" style="margin-bottom:12px">
+        <div class="card-header"><div class="card-icon" style="background:rgba(52,201,122,0.15)">📊</div><div><div class="card-title">Statistiche & Report Grafico</div><div class="card-desc">Inserisci uno o più periodi → grafici automatici + report PDF</div></div></div>
+
+        <div id="periodiList"></div>
+
+        <div class="btn-group" style="margin-bottom:0">
+          <button class="btn btn-ghost btn-sm" onclick="addPeriodo()">➕ Aggiungi periodo</button>
+          <button class="btn btn-primary" onclick="renderAllCharts()">📊 Aggiorna grafici</button>
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('csvInput').click()">📂 Importa da CSV</button>
+        </div>
+        <input type="file" id="csvInput" accept=".csv" style="display:none" onchange="handleCSV(this)">
+      </div>
+
+      <!-- KPI CARDS -->
+      <div class="kpi-grid" id="kpiGrid" style="display:none">
+        <div class="kpi-box"><div class="kpi-num" id="kpiV">—</div><div class="kpi-label">Verbali</div></div>
+        <div class="kpi-box"><div class="kpi-num" id="kpiC">—</div><div class="kpi-label">Controlli</div></div>
+        <div class="kpi-box"><div class="kpi-num" id="kpiS">—</div><div class="kpi-label">Sequestri</div></div>
+        <div class="kpi-box"><div class="kpi-num" id="kpiCh">—</div><div class="kpi-label">Chiusure</div></div>
+        <div class="kpi-box"><div class="kpi-num" id="kpiAg">—</div><div class="kpi-label">Segl. A.G.</div></div>
+        <div class="kpi-box"><div class="kpi-num" id="kpiE">—</div><div class="kpi-label">Esposti</div></div>
+      </div>
+
+      <!-- GRAFICI -->
+      <div id="chartsArea" style="display:none">
+        <div class="chart-grid">
+          <div class="chart-card">
+            <div class="chart-title">📊 Attività per tipologia</div>
+            <div class="chart-container"><canvas id="chartBar"></canvas></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">🥧 Distribuzione attività</div>
+            <div class="chart-container"><canvas id="chartDoughnut"></canvas></div>
+          </div>
+        </div>
+        <div class="chart-card-full" id="trendCardWrapper" style="display:none">
+          <div class="chart-title">📈 Trend multi-periodo</div>
+          <div class="chart-container-wide"><canvas id="chartLine"></canvas></div>
+        </div>
+      </div>
+
+      <!-- REPORT -->
+      <div class="card">
+        <div class="card-header"><div class="card-icon" style="background:rgba(52,201,122,0.15)">📝</div><div><div class="card-title">Genera Report</div></div></div>
+        <div class="form-row cols-2" style="margin-bottom:14px">
+          <div><label>Unità Operativa</label><input type="text" id="statUO" value="U.O. San Lorenzo — Uff. Polizia Amm.va"></div>
+          <div><label>Note per il report AI</label><input type="text" id="statAiNote" placeholder="Indicazioni aggiuntive per l'AI..."></div>
+        </div>
+        <div class="ai-box">
+          <div class="ai-box-header"><div class="ai-spark">✨</div><div class="ai-box-title">AI — Report narrativo dirigenziale</div></div>
+          <div class="ai-prompt-row">
+            <input class="ai-input" id="statAiExtra" placeholder="Es: enfatizza i sequestri, confronta con periodo precedente...">
+            <button class="btn btn-primary btn-sm" onclick="generateStatsAI()">⚡ Genera</button>
+          </div>
+          <div class="ai-loading" id="statAiLoading"><div class="dot-pulse"><span></span><span></span><span></span></div></div>
+        </div>
+        <div class="btn-group">
+          <button class="btn btn-primary" onclick="generateStatsDoc()">📊 Genera Report</button>
+        </div>
+        <div class="doc-toolbar no-print" id="statToolbar" style="display:none;margin-top:16px">
+          <button class="btn btn-sm btn-green" onclick="exportPDF('statOutput','Report Statistico')">📥 Esporta PDF</button>
+          <button class="btn btn-sm btn-ghost" onclick="window.print()">🖨️ Stampa</button>
+        </div>
+        <div class="doc-output" id="statOutput"></div>
+      </div>
+    </div>
+
+    <!-- ══════ ARCHIVIO ══════ -->
+    <div id="mod-archivio" class="module">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-icon" style="background:rgba(245,166,35,0.15)">🗂️</div>
+          <div><div class="card-title">Archivio Documenti</div><div class="card-desc">Firestore — persistente tra sessioni</div></div>
+          <button class="btn btn-sm btn-ghost no-print" style="margin-left:auto" onclick="loadArchivio()">🔄 Aggiorna</button>
+        </div>
+        <div class="search-bar">
+          <input class="search-input" id="archivioSearch" placeholder="🔍 Cerca per titolo, tipo, data..." oninput="filterArchivio(this.value)">
+          <div class="chips" style="margin:0;flex-wrap:nowrap">
+            <div class="chip active" onclick="filterArchivioType('all',this)" id="fAll">Tutti</div>
+            <div class="chip" onclick="filterArchivioType('documenti',this)">Docs</div>
+            <div class="chip" onclick="filterArchivioType('atipg',this)">PG</div>
+            <div class="chip" onclick="filterArchivioType('sequestri',this)">Seq</div>
+          </div>
+        </div>
+        <div id="archivioList"><div class="archivio-empty">⏳ Caricamento archivio...</div></div>
+      </div>
+    </div>
+
+    <!-- ══════ AI LIBERA ══════ -->
+    <div id="mod-ai_libre" class="module">
+      <div class="card">
+        <div class="card-header"><div class="card-icon" style="background:linear-gradient(135deg,rgba(79,142,247,0.2),rgba(155,124,244,0.2))">✨</div><div><div class="card-title">AI Libera — Assistente Operativo</div><div class="card-desc">Norma + fatto → l'AI fa tutto. Nessun modello fisso.</div></div></div>
+        <div style="margin-bottom:14px">
+          <label>Il tuo input (norma, fatto, quesito, bozza)</label>
+          <textarea id="aiLiberoInput" rows="6" placeholder="Esempi:&#10;• Art. 29 DPR 380/2001 — verifica abuso edilizio zona UNESCO, redigi annotazione PG&#10;• Verbale sequestro merce contraffatta art.474 c.p. + art.16 L.99/2009&#10;• Risposta a diffida del legale del titolare del bar X — esposto prot. 1234/2025&#10;• [Qualsiasi cosa — nessun limite]"></textarea>
+        </div>
+        <div class="norma-box">
+          <div class="norma-box-title">🔍 Riferimento normativo aggiuntivo (opzionale)</div>
+          <input type="text" id="aiLiberoNorma" placeholder="es. Art. 20 D.Lgs. 507/1993 / L.R. Campania 7/2020 art. 12">
+        </div>
+        <div class="chips">
+          <div class="chip" onclick="setAiLiberoPreset('annotazione_pg')">📋 Annotazione P.G.</div>
+          <div class="chip" onclick="setAiLiberoPreset('verbale_seq')">🔒 Verbale Sequestro</div>
+          <div class="chip" onclick="setAiLiberoPreset('sit')">🗣️ SIT</div>
+          <div class="chip" onclick="setAiLiberoPreset('cartello')">🚫 Cartello Monitorio</div>
+          <div class="chip" onclick="setAiLiberoPreset('relazione')">📄 Relazione</div>
+          <div class="chip" onclick="setAiLiberoPreset('diffida')">⚠️ Diffida</div>
+          <div class="chip" onclick="setAiLiberoPreset('parere')">💡 Parere normativo</div>
+          <div class="chip" onclick="setAiLiberoPreset('comunicazione_ag')">⚡ Com. A.G.</div>
+        </div>
+        <div class="ai-loading" id="aiLiberoLoading" style="margin:10px 0"><div class="dot-pulse"><span></span><span></span><span></span></div> Elaborazione in corso...</div>
+        <div class="btn-group" style="margin-bottom:14px">
+          <button class="btn btn-primary" onclick="runAiLibero()">✨ Elabora con AI</button>
+          <button class="btn btn-ghost btn-sm" onclick="clearAiLibero()">🗑️ Pulisci</button>
+        </div>
+        <div class="ai-output" id="aiLiberoOutput" style="font-size:13px;line-height:1.8;max-height:500px;overflow-y:auto"></div>
+        <div id="aiLiberoActions" style="display:none;margin-top:10px">
+          <div class="btn-group">
+            <button class="btn btn-green btn-sm" onclick="exportAiLiberoPDF()">📥 Esporta PDF</button>
+            <button class="btn btn-primary btn-sm" onclick="sendAiLiberoToDoc()">📄 Invia a Documenti</button>
+            <button class="btn btn-orange btn-sm" onclick="copyAiLibero()">📋 Copia</button>
+            <button class="btn btn-ghost btn-sm" onclick="saveToArchivio('AI Libera',document.getElementById('aiLiberoOutput').textContent,'ai_libre')">💾 Salva in archivio</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /main -->
+
+<!-- SETTINGS MODAL -->
+<div class="modal-overlay" id="settingsModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">⚙️ Impostazioni</div>
+      <button class="modal-close" onclick="closeSettings()">✕</button>
+    </div>
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-header"><div class="card-icon" style="background:rgba(255,166,0,0.15)">🔥</div><div><div class="card-title">Firebase Firestore</div><div class="card-desc">Configura la persistenza per l'archivio</div></div></div>
+      <div><label>API Key</label><input type="text" id="fbApiKey" placeholder="AIza..."></div>
+      <div><label>Auth Domain</label><input type="text" id="fbAuthDomain" placeholder="progetto.firebaseapp.com"></div>
+      <div><label>Project ID</label><input type="text" id="fbProjectId" placeholder="id-progetto"></div>
+      <div><label>Storage Bucket</label><input type="text" id="fbStorageBucket" placeholder="progetto.appspot.com"></div>
+      <div><label>Messaging Sender ID</label><input type="text" id="fbMessagingSenderId" placeholder="123456789"></div>
+      <div><label>App ID</label><input type="text" id="fbAppId" placeholder="1:123..."></div>
+      <div class="btn-group">
+        <button class="btn btn-primary" onclick="initFirebase()">🔥 Connetti Firebase</button>
+        <button class="btn btn-ghost btn-sm" onclick="clearFirebaseConfig()">🗑️ Reset</button>
+      </div>
+      <div id="fbTestResult" style="margin-top:10px;font-size:12px;display:none"></div>
+    </div>
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-header"><div class="card-icon" style="background:rgba(79,142,247,0.15)">🖨️</div><div><div class="card-title">Intestazione Documenti</div></div></div>
+      <div><label>Intestazione ente (riga 1)</label><input type="text" id="cfgEnte" value="COMUNE DI NAPOLI"></div>
+      <div><label>Corpo di polizia</label><input type="text" id="cfgPM" value="POLIZIA MUNICIPALE"></div>
+      <div><label>Unità Operativa</label><input type="text" id="cfgUO" value="U.O. San Lorenzo — Ufficio Polizia Amministrativa"></div>
+      <div><label>Firma predefinita</label><input type="text" id="cfgFirma" value="A.C. Ferrara"></div>
+      <div><label>Qualifica predefinita</label><input type="text" id="cfgQualifica" value="Agente di P.M."></div>
+      <button class="btn btn-primary btn-sm" onclick="saveConfig();closeSettings()">💾 Salva impostazioni</button>
+    </div>
+  </div>
+</div>
+
+<!-- ARCHIVIO DETAIL MODAL -->
+<div class="modal-overlay" id="archivioModal">
+  <div class="modal" style="width:800px">
+    <div class="modal-header">
+      <div class="modal-title" id="archivioModalTitle">Documento</div>
+      <button class="modal-close" onclick="closeArchivioModal()">✕</button>
+    </div>
+    <div id="archivioModalBody"></div>
+    <div class="btn-group no-print" style="margin-top:16px">
+      <button class="btn btn-green btn-sm" onclick="exportPDF('archivioDocPreview','Documento')">📥 PDF</button>
+      <button class="btn btn-ghost btn-sm" onclick="window.print()">🖨️ Stampa</button>
+      <button class="btn btn-red btn-sm" onclick="deleteArchivioItem()">🗑️ Elimina</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ─── CONFIG & STATE ───
+const cfg = {
+  ente: 'COMUNE DI NAPOLI',
+  pm: 'POLIZIA MUNICIPALE',
+  uo: 'U.O. San Lorenzo — Ufficio Polizia Amministrativa',
+  firma: 'A.C. Ferrara',
+  qualifica: 'Agente di P.M.'
+};
+const st = { docs:0, verbali:0, seq:0, pdfContent:null, csvData:null, lastAI:'', db:null, archivioAll:[], archivioFiltered:[], currentArchivioId:null };
+
+// ─── INIT ───
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('topbarDate').textContent = new Date().toLocaleDateString('it-IT',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
+  document.getElementById('docData').value = new Date().toISOString().split('T')[0];
+  setupDrag('docDropZone', e => handleDocPdf({files:e.dataTransfer.files}));
+  setupDrag('csvDropZone', e => handleCSV({files:e.dataTransfer.files}));
+  const k = localStorage.getItem('pm_apikey'); if(k){document.getElementById('apiKeyInput').value=k;}
+  document.getElementById('apiKeyInput').addEventListener('input',e=>{localStorage.setItem('pm_apikey',e.target.value);});
+  loadConfig();
+  loadFirebaseConfig();
+  if(typeof pdfjsLib!=='undefined') pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+});
+
+function loadConfig() {
+  const s = localStorage.getItem('pm_cfg'); if(!s) return;
+  try { Object.assign(cfg, JSON.parse(s)); applyConfigToInputs(); } catch(e){}
+}
+function applyConfigToInputs() {
+  document.getElementById('cfgEnte').value=cfg.ente;
+  document.getElementById('cfgPM').value=cfg.pm;
+  document.getElementById('cfgUO').value=cfg.uo;
+  document.getElementById('cfgFirma').value=cfg.firma;
+  document.getElementById('cfgQualifica').value=cfg.qualifica;
+  document.getElementById('docFirma').value=cfg.firma;
+  document.getElementById('docQualifica').value=cfg.qualifica;
+}
+function saveConfig() {
+  cfg.ente=document.getElementById('cfgEnte').value;
+  cfg.pm=document.getElementById('cfgPM').value;
+  cfg.uo=document.getElementById('cfgUO').value;
+  cfg.firma=document.getElementById('cfgFirma').value;
+  cfg.qualifica=document.getElementById('cfgQualifica').value;
+  localStorage.setItem('pm_cfg',JSON.stringify(cfg));
+  toast('✅ Configurazione salvata','success');
+}
+
+// ─── FIREBASE ───
+function loadFirebaseConfig() {
+  const s=localStorage.getItem('pm_fb');
+  if(!s) return;
+  try {
+    const f=JSON.parse(s);
+    document.getElementById('fbApiKey').value=f.apiKey||'';
+    document.getElementById('fbAuthDomain').value=f.authDomain||'';
+    document.getElementById('fbProjectId').value=f.projectId||'';
+    document.getElementById('fbStorageBucket').value=f.storageBucket||'';
+    document.getElementById('fbMessagingSenderId').value=f.messagingSenderId||'';
+    document.getElementById('fbAppId').value=f.appId||'';
+    if(f.apiKey) initFirebase(true);
+  } catch(e){}
+}
+function initFirebase(silent=false) {
+  const fbCfg = {
+    apiKey:document.getElementById('fbApiKey').value,
+    authDomain:document.getElementById('fbAuthDomain').value,
+    projectId:document.getElementById('fbProjectId').value,
+    storageBucket:document.getElementById('fbStorageBucket').value,
+    messagingSenderId:document.getElementById('fbMessagingSenderId').value,
+    appId:document.getElementById('fbAppId').value
+  };
+  if(!fbCfg.apiKey||!fbCfg.projectId){if(!silent) toast('⚠️ Inserisci almeno API Key e Project ID','error'); return;}
+  try {
+    if(firebase.apps.length>0) firebase.apps.forEach(a=>a.delete());
+    const app=firebase.initializeApp(fbCfg);
+    st.db=firebase.firestore(app);
+    localStorage.setItem('pm_fb',JSON.stringify(fbCfg));
+    setFbStatus(true);
+    if(!silent) { toast('🔥 Firebase connesso!','success'); loadArchivio(); }
+    loadArchivioCount();
+  } catch(e) { setFbStatus(false); if(!silent) toast('❌ Errore Firebase: '+e.message,'error'); }
+}
+function setFbStatus(ok) {
+  document.getElementById('fbDot').className='fb-dot '+(ok?'ok':'err');
+  document.getElementById('fbStatusText').textContent='Firebase: '+(ok?'connesso':'errore');
+  document.getElementById('fbNavDot').className='nav-fb-dot '+(ok?'connected':'');
+}
+function clearFirebaseConfig() {
+  localStorage.removeItem('pm_fb'); st.db=null; setFbStatus(false);
+  ['fbApiKey','fbAuthDomain','fbProjectId','fbStorageBucket','fbMessagingSenderId','fbAppId'].forEach(id=>document.getElementById(id).value='');
+  toast('🗑️ Config Firebase rimossa','success');
+}
+
+// ─── SAVE TO FIRESTORE ───
+async function saveToArchivio(title, htmlContent, tipo) {
+  const entry = {
+    title, tipo, htmlContent,
+    ts: new Date().toISOString(),
+    data: new Date().toLocaleDateString('it-IT'),
+    operatore: cfg.firma
+  };
+  // always save locally
+  st.archivioAll.unshift({...entry, id:'local_'+Date.now()});
+  updateRecentDocs();
+  st.docs++;updateCounters();
+  if(!st.db) { toast('💾 Salvato localmente (Firebase non configurato)','success'); return; }
+  try {
+    const ref = await st.db.collection('portale_pm').add(entry);
+    entry.id = ref.id;
+    st.archivioAll[0].id = ref.id;
+    loadArchivioCount();
+    toast('💾 Salvato in Firestore','success');
+  } catch(e) { toast('⚠️ Errore salvataggio: '+e.message,'error'); }
+}
+
+async function loadArchivio() {
+  const el=document.getElementById('archivioList');
+  el.innerHTML='<div class="archivio-empty">⏳ Caricamento...</div>';
+  if(!st.db) {
+    if(st.archivioAll.length===0){ el.innerHTML='<div class="archivio-empty">Nessun documento. Configura Firebase per la persistenza.</div>'; return; }
+    renderArchivio(st.archivioAll); return;
+  }
+  try {
+    const snap = await st.db.collection('portale_pm').orderBy('ts','desc').limit(100).get();
+    st.archivioAll = snap.docs.map(d=>({...d.data(),id:d.id}));
+    st.archivioFiltered = [...st.archivioAll];
+    renderArchivio(st.archivioAll);
+    updateArchivioCount(st.archivioAll.length);
+  } catch(e) { el.innerHTML='<div class="archivio-empty">❌ Errore: '+e.message+'</div>'; }
+}
+async function loadArchivioCount() {
+  if(!st.db) return;
+  try { const snap=await st.db.collection('portale_pm').get(); updateArchivioCount(snap.size); } catch(e){}
+}
+function updateArchivioCount(n) {
+  document.getElementById('archivioCount').textContent=n;
+  document.getElementById('cntAll').textContent=n;
+}
+function updateCounters() {
+  document.getElementById('cntDocs').textContent=st.docs;
+  document.getElementById('cntVerbali').textContent=st.verbali;
+  document.getElementById('cntSeq').textContent=st.seq;
+}
+function updateRecentDocs() {
+  const el=document.getElementById('recentDocs');
+  const html=st.archivioAll.slice(0,5).map(e=>archivioItemHTML(e)).join('');
+  el.innerHTML=html||'<div class="archivio-empty">Nessun documento ancora.</div>';
+}
+function renderArchivio(items) {
+  const el=document.getElementById('archivioList');
+  if(!items.length){ el.innerHTML='<div class="archivio-empty">🗂️ Archivio vuoto.</div>'; return; }
+  el.innerHTML=items.map(e=>archivioItemHTML(e)).join('');
+}
+function archivioItemHTML(e) {
+  const colors={documenti:'var(--accent)',atipg:'var(--purple)',sequestri:'var(--red)',ai_libre:'var(--orange)',modulistica:'var(--orange)',statistiche:'var(--green)'};
+  const c=colors[e.tipo]||'var(--text3)';
+  return `<div class="archivio-item" onclick="openArchivioItem('${e.id}')">
+    <div class="archivio-type-dot" style="background:${c}"></div>
+    <div class="archivio-content">
+      <div class="archivio-title">${e.title||'Documento'}</div>
+      <div class="archivio-meta"><span>${e.data||''}</span><span class="badge" style="background:rgba(255,255,255,0.07);color:${c};padding:1px 6px;border-radius:8px;font-size:9px">${e.tipo||''}</span><span>${e.operatore||''}</span></div>
+    </div>
+    <div class="archivio-actions no-print">
+      <button class="btn btn-sm btn-ghost" onclick="event.stopPropagation();deleteDoc('${e.id}')">🗑️</button>
+    </div>
+  </div>`;
+}
+function filterArchivio(q) {
+  const items=q?st.archivioAll.filter(e=>(e.title||'').toLowerCase().includes(q.toLowerCase())):st.archivioAll;
+  renderArchivio(items);
+}
+function filterArchivioType(tipo,el) {
+  document.querySelectorAll('#mod-archivio .chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  renderArchivio(tipo==='all'?st.archivioAll:st.archivioAll.filter(e=>e.tipo===tipo));
+}
+function openArchivioItem(id) {
+  const item=st.archivioAll.find(e=>e.id===id); if(!item) return;
+  st.currentArchivioId=id;
+  document.getElementById('archivioModalTitle').textContent=item.title||'Documento';
+  document.getElementById('archivioModalBody').innerHTML=`<div class="doc-output" id="archivioDocPreview" style="display:block">${item.htmlContent||'[Nessun contenuto]'}</div>`;
+  document.getElementById('archivioModal').classList.add('open');
+}
+function closeArchivioModal(){ document.getElementById('archivioModal').classList.remove('open'); }
+async function deleteDoc(id) {
+  if(!confirm('Eliminare questo documento?')) return;
+  st.archivioAll=st.archivioAll.filter(e=>e.id!==id);
+  renderArchivio(st.archivioAll);
+  if(st.db && !id.startsWith('local_')) {
+    try { await st.db.collection('portale_pm').doc(id).delete(); toast('🗑️ Eliminato','success'); }
+    catch(e){toast('Errore eliminazione','error');}
+  } else { toast('🗑️ Eliminato','success'); }
+}
+async function deleteArchivioItem() {
+  if(st.currentArchivioId) { await deleteDoc(st.currentArchivioId); closeArchivioModal(); }
+}
+
+// ─── API AI ───
+async function callAI(system, user) {
+  const key=document.getElementById('apiKeyInput').value||localStorage.getItem('pm_apikey')||'';
+  if(!key||key.length<20){toast('⚠️ API Key mancante — inseriscila nel campo in basso a sinistra','error');throw new Error('No key');}
+  const r=await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+    body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:2000,system,messages:[{role:'user',content:user}]})
+  });
+  if(!r.ok){const e=await r.json();throw new Error(e.error?.message||'API error');}
+  return (await r.json()).content[0].text;
+}
+
+const SYS = `Sei un assistente della Polizia Municipale del Comune di Napoli, U.O. San Lorenzo, Ufficio Polizia Amministrativa.
+Conosci: commercio (D.Lgs.114/1998, L.R. Campania 7/2020, D.Lgs.222/2016, TULPS), edilizia (DPR 380/2001), ambiente, dehors, artigianato (L.R.11/2015, L.R.22/2016), extralberghiero, commercio su aree pubbliche, P.G. (art.55,347,351,357 cpp), sequestri (art.13 L.689/1981, art.321 cpp), TULPS.
+Tono: formale burocratico italiano. OUTPUT: solo il testo richiesto, nessuna spiegazione aggiuntiva. Firma: A.C. Ferrara.`;
+
+// ─── PDF.JS — LEGGI PDF CARICATO ───
+async function readPdfWithPdfJs(file) {
+  const bar=document.getElementById('pdfProgressBar');
+  const prog=document.getElementById('pdfProgress');
+  prog.style.display='block'; bar.style.width='10%';
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({data:buf}).promise;
+  let text=''; bar.style.width='30%';
+  const total=pdf.numPages;
+  for(let i=1;i<=total;i++) {
+    const page=await pdf.getPage(i);
+    const content=await page.getTextContent();
+    text+=content.items.map(s=>s.str).join(' ')+'\n';
+    bar.style.width=Math.round(30+60*(i/total))+'%';
+  }
+  bar.style.width='100%';
+  setTimeout(()=>{ prog.style.display='none'; bar.style.width='0%'; },600);
+  return text;
+}
+
+async function handleDocPdf(input) {
+  const file=input.files?.[0]||input; if(!file) return;
+  const dz=document.getElementById('docDropZone');
+  dz.innerHTML='<div class="drop-zone-icon">⏳</div><div class="drop-zone-text">Estrazione testo in corso...</div><div class="pdf-progress" id="pdfProgress" style="display:block"><div class="pdf-progress-bar" id="pdfProgressBar" style="width:0%"></div></div>';
+  try {
+    if(file.type==='application/pdf' && typeof pdfjsLib!=='undefined') {
+      st.pdfContent = await readPdfWithPdfJs(file);
+    } else {
+      st.pdfContent = await file.text();
+    }
+    const preview=st.pdfContent.substring(0,80).replace(/\n/g,' ');
+    dz.classList.add('drop-zone-loaded');
+    dz.innerHTML=`<div class="drop-zone-icon" style="color:var(--green)">✅</div><div class="drop-zone-text" style="color:var(--green)">${file.name} (${Math.round(st.pdfContent.length/1000)}k caratteri estratti)</div><div class="drop-zone-sub">"${preview}..."</div>`;
+    toast('📎 PDF letto: '+file.name,'success');
+  } catch(e) { dz.innerHTML='<div class="drop-zone-icon">❌</div><div class="drop-zone-text">Errore lettura PDF</div>'; toast('Errore PDF: '+e.message,'error'); }
+}
+
+// ─── EXPORT PDF REALE (jsPDF) ───
+function exportPDF(elementId, titolo) {
+  const el=document.getElementById(elementId); if(!el) return;
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF('p','mm','a4');
+  const margin=20; const pageW=210-margin*2; let y=margin;
+  
+  // Header ufficiale
+  doc.setFontSize(9); doc.setFont('helvetica','bold');
+  doc.text(cfg.ente,margin,y); y+=5;
+  doc.setFont('helvetica','normal'); doc.setFontSize(8);
+  doc.text(cfg.pm+' — '+cfg.uo,margin,y); y+=8;
+  doc.setLineWidth(0.5); doc.line(margin,y,210-margin,y); y+=6;
+  
+  // Titolo
+  doc.setFontSize(10); doc.setFont('helvetica','bold');
+  doc.text(titolo.toUpperCase(),margin,y); y+=6;
+  doc.setFontSize(8); doc.setFont('helvetica','normal');
+  doc.text('Napoli, '+new Date().toLocaleDateString('it-IT'),margin,y); y+=8;
+  
+  // Contenuto testo
+  doc.setFontSize(9);
+  const lines=doc.splitTextToSize(el.innerText||el.textContent||'',pageW);
+  lines.forEach(line=>{
+    if(y>280){doc.addPage();y=margin;}
+    doc.text(line,margin,y); y+=5;
+  });
+  
+  const fname=(titolo+'-'+new Date().toLocaleDateString('it-IT').replace(/\//g,'-')+'.pdf').replace(/\s+/g,'_');
+  doc.save(fname);
+  toast('📥 PDF scaricato: '+fname,'success');
+}
+
+function exportAiLiberoPDF() {
+  const el=document.getElementById('aiLiberoOutput');
+  if(!el||!el.textContent.trim()) return;
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF('p','mm','a4');
+  const m=20,pw=170; let y=m;
+  doc.setFontSize(9);doc.setFont('helvetica','bold');doc.text(cfg.ente,m,y);y+=5;
+  doc.setFont('helvetica','normal');doc.setFontSize(8);doc.text(cfg.pm+' — '+cfg.uo,m,y);y+=6;
+  doc.setLineWidth(0.5);doc.line(m,y,190,y);y+=6;
+  doc.setFontSize(9);
+  const lines=doc.splitTextToSize(el.textContent,pw);
+  lines.forEach(l=>{if(y>280){doc.addPage();y=m;}doc.text(l,m,y);y+=5;});
+  doc.save('AI_Libera_'+Date.now()+'.pdf');
+  toast('📥 PDF esportato','success');
+}
+
+// ─── DOC HEADER — Amministrativa 2.0 ───
+function makeDocHeader(prot, data) {
+  return `<div class="doc-header-amm2">
+    <div class="doc-header-left">
+      <div class="doc-header-comune">Comune di Napoli</div>
+      <div class="doc-header-area">Area Sicurezza</div>
+      <div class="doc-header-servizio">Servizio Coordinamento Strategico Operativo</div>
+      <div class="doc-header-uo">Unità Operativa San Lorenzo</div>
+      <div class="doc-header-ufficio">Polizia Amministrativa</div>
+    </div>
+    <div class="doc-header-right">
+      <div class="doc-header-badge">⚖️</div>
+      <div class="doc-header-prot">
+        ${prot?'Prot. n. <strong>'+prot+'</strong><br>':''}
+        Napoli, <strong>${data}</strong>
+      </div>
+    </div>
+  </div>`;
+}
+
+function makeDocFooter() {
+  return `<div class="doc-footer-amm2">
+    Via C. Rosaroll, 31 — 80139 Napoli &nbsp;·&nbsp; tel. 081 7952812 &nbsp;·&nbsp; Ufficio Polizia Amministrativa U.O. San Lorenzo
+  </div>`;
+}
+
+// ─── DOCUMENTI LIBERI ───
+function setDocTipo(v){document.getElementById('docTipo').value=v;}
+function setAiPromptDoc(t){document.getElementById('docAiPrompt').value=t;}
+
+async function runDocAI() {
+  const p=document.getElementById('docAiPrompt').value; if(!p) return;
+  const pdfCtx=st.pdfContent?'\n\nDOCUMENTO DI RIFERIMENTO (PDF allegato, usa come base):\n'+st.pdfContent.substring(0,4000):'';
+  showLoad('docAiLoading',true);
+  document.getElementById('docAiSuggestion').style.display='none';
+  try {
+    const r=await callAI(SYS,`Tipo: ${document.getElementById('docTipo').value}\nOggetto: ${document.getElementById('docOggetto').value}\nRif: ${document.getElementById('docRif').value}\nIstruzione: ${p}${pdfCtx}`);
+    document.getElementById('docAiSuggestion').textContent=r;
+    document.getElementById('docAiSuggestion').style.display='block';
+    document.getElementById('docCorpo').value=r;
+  } catch(e){if(e.message!=='No key')toast('Errore AI: '+e.message,'error');}
+  finally{showLoad('docAiLoading',false);}
+}
+
+function generateDoc() {
+  const tipo=document.getElementById('docTipo').value;
+  const prot=document.getElementById('docProt').value||'___________';
+  const data=document.getElementById('docData').value?new Date(document.getElementById('docData').value).toLocaleDateString('it-IT'):'__/__/____';
+  const dest=(document.getElementById('docDest').value||'___________________').split('/').map(s=>s.trim()).join('<br>');
+  const cc=document.getElementById('docCC').value.split('/').map(s=>s.trim()).join('<br>');
+  const oggetto=document.getElementById('docOggetto').value||'[OGGETTO]';
+  const rif=document.getElementById('docRif').value;
+  const corpo=(document.getElementById('docCorpo').value||'').replace(/\n/g,'<br>');
+  const firma=document.getElementById('docFirma').value||cfg.firma;
+  const qualifica=document.getElementById('docQualifica').value||cfg.qualifica;
+  const labels={relazione:'RELAZIONE DI SERVIZIO',lettera:'LETTERA DI TRASMISSIONE',risposta:'RISCONTRO',nota:'NOTA INTERUFFICIO',parere:'PARERE TECNICO',rapporto:'RAPPORTO AL COMANDANTE',informativa:'INFORMATIVA',diffida:'DIFFIDA',libero:'DOCUMENTO'};
+  const tipoL=labels[tipo]||tipo.toUpperCase();
+
+  const html=`${makeDocHeader(prot,data)}
+    <div style="margin-bottom:12px"><strong>A:</strong><br>${dest}${cc?'<br><br><strong>Cc:</strong><br>'+cc:''}</div>
+    ${rif?'<div style="margin-bottom:8px;font-size:12px"><strong>Riferimenti:</strong> '+rif+'</div>':''}
+    <div class="doc-oggetto">OGGETTO: ${tipoL} — ${oggetto}</div>
+    <div class="doc-body" style="text-align:right;font-size:12px;margin-bottom:12px"><strong>${firma}</strong></div>
+    <div class="doc-body">${corpo}</div>
+    <div class="doc-firma"><div>Napoli, ${data}</div><div style="margin-top:16px"><strong>${firma}</strong></div><div>${qualifica}</div></div>
+    ${makeDocFooter()}`;
+
+  document.getElementById('docOutput').innerHTML=html;
+  document.getElementById('docOutput').style.display='block';
+  document.getElementById('docToolbar').style.display='flex';
+  st.verbali++;updateCounters();
+  saveToArchivio(tipoL+' — '+oggetto, html, 'documenti');
+}
+
+function clearDocForm(){
+  ['docProt','docDest','docCC','docOggetto','docRif','docCorpo'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('docData').value=new Date().toISOString().split('T')[0];
+  document.getElementById('docOutput').style.display='none';
+  document.getElementById('docToolbar').style.display='none';
+  document.getElementById('docAiSuggestion').style.display='none';
+  st.pdfContent=null;
+  const dz=document.getElementById('docDropZone');
+  dz.classList.remove('drop-zone-loaded');
+  dz.innerHTML='<div class="drop-zone-icon">📎</div><div class="drop-zone-text">Trascina PDF o clicca per selezionare</div><div class="drop-zone-sub">PDF.js estrae il testo — l\'AI risponde sul contenuto</div><div class="pdf-progress" id="pdfProgress"><div class="pdf-progress-bar" id="pdfProgressBar" style="width:0%"></div></div>';
+}
+
+// ─── ATTI P.G. ───
+function setActType(type) {
+  const forms={
+    sit:buildSITForm(),spontanee:buildSpontaneeForm(),
+    annotazione:buildAnnotazioneForm(),cartello:buildCartelloForm(),
+    verbale_acc:buildVerbaleAccForm(),comunicazione_ag:buildComunicazioneAGForm()
+  };
+  document.getElementById('atipgFormContent').innerHTML=forms[type]||'<p>In costruzione</p>';
+}
+
+function buildSITForm(){return `
+  <div class="card-header"><div class="card-icon" style="background:rgba(155,124,244,0.15)">🗣️</div><div><div class="card-title">Verbale S.I.T. — art.351 c.p.p.</div></div></div>
+  <div class="form-row cols-3">
+    <div><label>N° Verbale</label><input type="text" id="sitNum" placeholder="001/2025/PG"></div>
+    <div><label>Data</label><input type="date" id="sitData" value="${new Date().toISOString().split('T')[0]}"></div>
+    <div><label>Ora</label><input type="text" id="sitOra" placeholder="10:30"></div>
+  </div>
+  <div class="form-row cols-3">
+    <div><label>Cognome e Nome</label><input type="text" id="sitNome"></div>
+    <div><label>Nato a / il</label><input type="text" id="sitNascita"></div>
+    <div><label>C.F.</label><input type="text" id="sitCF"></div>
+  </div>
+  <div class="form-row cols-2">
+    <div><label>Residente</label><input type="text" id="sitRes"></div>
+    <div><label>Qualità</label><select id="sitQualita"><option>Testimone</option><option>Persona informata sui fatti</option><option>Parte offesa</option><option>Esperto/Tecnico</option></select></div>
+  </div>
+  <div><label>Procedimento / Fatto</label><input type="text" id="sitFatto" placeholder="Oggetto dell'accertamento"></div>
+  <div class="ai-box">
+    <div class="ai-box-header"><div class="ai-spark">✨</div><div class="ai-box-title">AI — Sviluppa le dichiarazioni</div></div>
+    <div class="ai-prompt-row"><input class="ai-input" id="sitAiP" placeholder="Descrivi i fatti riferiti..."><button class="btn btn-primary btn-sm" onclick="runSITai()">⚡</button></div>
+    <div class="ai-loading" id="sitAiL"><div class="dot-pulse"><span></span><span></span><span></span></div></div>
+  </div>
+  <div><label>Dichiarazioni</label><textarea id="sitDich" rows="6"></textarea></div>
+  <div><label>D/R aggiuntivi</label><textarea id="sitQR" rows="3" placeholder="D: ... R: ..."></textarea></div>
+  <div class="btn-group"><button class="btn btn-primary" onclick="generateSIT()">📄 Genera Verbale SIT</button></div>
+  <div class="doc-toolbar no-print" id="sitTbar" style="display:none;margin-top:10px">
+    <button class="btn btn-sm btn-green" onclick="exportPDF('sitOut','Verbale SIT')">📥 PDF</button>
+    <button class="btn btn-sm btn-ghost" onclick="window.print()">🖨️</button>
+  </div>
+  <div class="doc-output" id="sitOut"></div>`;}
+
+async function runSITai(){
+  showLoad('sitAiL',true);
+  try{const r=await callAI(SYS,`SIT art.351 cpp. Fatto: "${document.getElementById('sitFatto').value}". Dichiarato: "${document.getElementById('sitAiP').value}". Scrivi testo formale dichiarazioni in terza persona.`);
+  document.getElementById('sitDich').value=r;toast('✅','success');}
+  catch(e){if(e.message!=='No key')toast(e.message,'error');}
+  finally{showLoad('sitAiL',false);}
+}
+
+function generateSIT(){
+  const data=new Date(document.getElementById('sitData').value||Date.now()).toLocaleDateString('it-IT');
+  const nome=document.getElementById('sitNome').value||'___';
+  const html=`${makeDocHeader(document.getElementById('sitNum').value,data)}
+    <div style="font-weight:bold;text-align:center;margin-bottom:12px;font-size:14px">VERBALE DI SOMMARIE INFORMAZIONI TESTIMONIALI<br><span style="font-size:11px;font-weight:400">(art. 351 c.p.p.)</span></div>
+    <p>L'anno ${new Date().getFullYear()}, il giorno <strong>${data}</strong> alle ore <strong>${document.getElementById('sitOra').value||'__:__'}</strong>, il sottoscritto <strong>A.C. Ferrara</strong>, Agente di P.G.:</p>
+    <p style="margin:10px 0"><strong>PROCEDE A SENTIRE</strong> in qualità di <em>${document.getElementById('sitQualita').value}</em>:</p>
+    <table style="width:100%;border-collapse:collapse;margin:10px 0;font-size:12px">
+      <tr><td style="padding:5px 8px;border:1px solid #ccc;width:35%"><b>Cognome e Nome:</b></td><td style="padding:5px 8px;border:1px solid #ccc">${nome}</td></tr>
+      <tr><td style="padding:5px 8px;border:1px solid #ccc"><b>Nato a/il:</b></td><td style="padding:5px 8px;border:1px solid #ccc">${document.getElementById('sitNascita').value||'___'}</td></tr>
+      <tr><td style="padding:5px 8px;border:1px solid #ccc"><b>C.F.:</b></td><td style="padding:5px 8px;border:1px solid #ccc">${document.getElementById('sitCF').value||'___'}</td></tr>
+      <tr><td style="padding:5px 8px;border:1px solid #ccc"><b>Residente:</b></td><td style="padding:5px 8px;border:1px solid #ccc">${document.getElementById('sitRes').value||'___'}</td></tr>
+    </table>
+    <p>In merito a: <strong>${document.getElementById('sitFatto').value||'___'}</strong></p>
+    <p style="margin:10px 0">Previo avvertimento ex artt. 371-bis e 372 c.p., il dichiarante rende:</p>
+    <div style="padding:12px;border-left:3px solid #333;font-style:italic;margin:12px 0">${(document.getElementById('sitDich').value||'').replace(/\n/g,'<br>')}</div>
+    ${document.getElementById('sitQR').value?'<div style="margin:10px 0"><b>D/R:</b><br>'+(document.getElementById('sitQR').value||'').replace(/\n/g,'<br>')+'</div>':''}
+    <p>Letto, confermato e sottoscritto.</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:32px;margin-top:32px;text-align:center;font-size:12px">
+      <div>Il Dichiarante<br><br><br>___________________________<br>${nome}</div>
+      <div>Il Verbalizzante<br><br><br>___________________________<br><b>A.C. Ferrara</b></div>
+    </div>${makeDocFooter()}`;
+  document.getElementById('sitOut').innerHTML=html;
+  document.getElementById('sitOut').style.display='block';
+  document.getElementById('sitTbar').style.display='flex';
+  st.verbali++;updateCounters();
+  saveToArchivio('Verbale SIT — '+nome,html,'atipg');
+}
+
+function buildSpontaneeForm(){return `
+  <div class="card-header"><div class="card-icon" style="background:rgba(155,124,244,0.15)">📣</div><div><div class="card-title">Verbale Dichiarazioni Spontanee — art.350 c.3 c.p.p.</div></div></div>
+  <div class="form-row cols-3">
+    <div><label>N°</label><input type="text" id="spN" placeholder="001/2025/PG"></div>
+    <div><label>Data</label><input type="date" id="spD" value="${new Date().toISOString().split('T')[0]}"></div>
+    <div><label>Ora</label><input type="text" id="spO" placeholder="14:30"></div>
+  </div>
+  <div class="form-row cols-3">
+    <div><label>Cognome e Nome</label><input type="text" id="spNome"></div>
+    <div><label>Nato a/il</label><input type="text" id="spNasc"></div>
+    <div><label>Luogo</label><input type="text" id="spLuogo"></div>
+  </div>
+  <div class="ai-box">
+    <div class="ai-box-header"><div class="ai-spark">✨</div><div class="ai-box-title">AI — Elabora le dichiarazioni spontanee</div></div>
+    <div class="ai-prompt-row"><input class="ai-input" id="spAiP" placeholder="Cosa ha dichiarato il soggetto spontaneamente..."><button class="btn btn-primary btn-sm" onclick="runSpAI()">⚡</button></div>
+    <div class="ai-loading" id="spAiL"><div class="dot-pulse"><span></span><span></span><span></span></div></div>
+  </div>
+  <div><label>Testo dichiarazione</label><textarea id="spT" rows="6"></textarea></div>
+  <div class="btn-group"><button class="btn btn-primary" onclick="generateSp()">📄 Genera Verbale</button></div>
+  <div class="doc-toolbar no-print" id="spTbar" style="display:none;margin-top:10px"><button class="btn btn-sm btn-green" onclick="exportPDF('spOut','Dich Spontanee')">📥 PDF</button></div>
+  <div class="doc-output" id="spOut"></div>`;}
+
+async function runSpAI(){showLoad('spAiL',true);try{const r=await callAI(SYS,`Verbale dich. spontanee art.350c3cpp. Soggetto dichiara: "${document.getElementById('spAiP').value}". Redigi testo formale.`);document.getElementById('spT').value=r;toast('✅','success');}catch(e){if(e.message!=='No key')toast(e.message,'error');}finally{showLoad('spAiL',false);}}
+function generateSp(){
+  const data=new Date(document.getElementById('spD').value||Date.now()).toLocaleDateString('it-IT');
+  const nome=document.getElementById('spNome').value||'___';
+  const html=`${makeDocHeader(document.getElementById('spN').value,data)}
+    <div style="font-weight:bold;text-align:center;margin-bottom:12px">VERBALE DI DICHIARAZIONI SPONTANEE<br><span style="font-size:11px;font-weight:400">(art. 350, c.3 c.p.p.)</span></div>
+    <p>In data <b>${data}</b> ore <b>${document.getElementById('spO').value||'__:__'}</b> in <b>${document.getElementById('spLuogo').value||'___'}</b>, il sottoscritto <b>A.C. Ferrara</b>, Agente di P.G.:</p>
+    <p style="margin:10px 0"><b>RICEVE LE SEGUENTI DICHIARAZIONI SPONTANEE</b> da: <b>${nome}</b>, nato/a ${document.getElementById('spNasc').value||'___'}</p>
+    <div style="padding:12px;border-left:3px solid #333;font-style:italic;margin:12px 0">${(document.getElementById('spT').value||'').replace(/\n/g,'<br>')}</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:32px;margin-top:32px;text-align:center;font-size:12px">
+      <div>Il Dichiarante<br><br><br>___________________________<br>${nome}</div>
+      <div>Il Verbalizzante<br><br><br>___________________________<br><b>A.C. Ferrara</b></div>
+    </div>${makeDocFooter()}`;
+  document.getElementById('spOut').innerHTML=html;document.getElementById('spOut').style.display='block';document.getElementById('spTbar').style.display='flex';
+  st.verbali++;updateCounters();saveToArchivio('Dich. Spontanee — '+nome,html,'atipg');
+}
+
+function buildAnnotazioneForm(){return `
+  <div class="card-header"><div class="card-icon" style="background:rgba(155,124,244,0.15)">🔍</div><div><div class="card-title">Annotazione di P.G. — art.357 c.p.p.</div></div></div>
+  <div class="form-row cols-3">
+    <div><label>N° Annotazione</label><input type="text" id="aN" placeholder="001/PG/2025"></div>
+    <div><label>Data</label><input type="date" id="aD" value="${new Date().toISOString().split('T')[0]}"></div>
+    <div><label>Proc. penale rif.</label><input type="text" id="aF" placeholder="rif. proc. pen. n. ..."></div>
+  </div>
+  <div><label>Oggetto</label><input type="text" id="aO" placeholder="es. Accertamenti in materia di commercio abusivo"></div>
+  <div class="norma-box">
+    <div class="norma-box-title">🔍 Norma — l'AI sviluppa l'annotazione completa</div>
+    <input type="text" id="aNorma" placeholder="es. Art.474 c.p. + art.321 cpp / art.29 DPR 380/2001">
+  </div>
+  <div class="ai-box">
+    <div class="ai-box-header"><div class="ai-spark">✨</div><div class="ai-box-title">AI — Sviluppa dalla norma e dal fatto</div></div>
+    <div class="ai-prompt-row"><input class="ai-input" id="aAiP" placeholder="Descrivi il fatto accertato, luogo, soggetti, prove..."><button class="btn btn-primary btn-sm" onclick="runAnnAI()">⚡ Genera</button></div>
+    <div class="ai-loading" id="aAiL"><div class="dot-pulse"><span></span><span></span><span></span></div></div>
+  </div>
+  <div><label>Testo annotazione</label><textarea id="aT" rows="9"></textarea></div>
+  <div class="btn-group"><button class="btn btn-primary" onclick="generateAnn()">📄 Genera Annotazione</button></div>
+  <div class="doc-toolbar no-print" id="aTbar" style="display:none;margin-top:10px"><button class="btn btn-sm btn-green" onclick="exportPDF('aOut','Annotazione PG')">📥 PDF</button></div>
+  <div class="doc-output" id="aOut"></div>`;}
+
+async function runAnnAI(){showLoad('aAiL',true);try{const r=await callAI(SYS,`Annotazione P.G. (art.357 cpp). Norma: ${document.getElementById('aNorma').value}. Fatto: ${document.getElementById('aAiP').value}. Oggetto: ${document.getElementById('aO').value}. Redigi annotazione completa: qualifica operatori, attività svolte, norme violate, proposta trasmissione A.G.`);document.getElementById('aT').value=r;toast('✅','success');}catch(e){if(e.message!=='No key')toast(e.message,'error');}finally{showLoad('aAiL',false);}}
+function generateAnn(){
+  const data=new Date(document.getElementById('aD').value||Date.now()).toLocaleDateString('it-IT');
+  const oggetto=document.getElementById('aO').value||'___';
+  const html=`${makeDocHeader(document.getElementById('aN').value,data)}
+    <div style="font-weight:bold;text-align:center;margin-bottom:12px">ANNOTAZIONE DI POLIZIA GIUDIZIARIA<br><span style="font-size:11px;font-weight:400">(art. 357 c.p.p.)</span></div>
+    <p><b>Oggetto:</b> ${oggetto} — <b>Proc.:</b> ${document.getElementById('aF').value||'___'}</p>
+    <div style="margin:16px 0">${(document.getElementById('aT').value||'').replace(/\n/g,'<br>')}</div>
+    <div style="margin-top:24px;text-align:right">Napoli, ${data}<br><br>L'Agente di P.G.<br><br>___________________________<br><b>A.C. Ferrara</b></div>`;
+  document.getElementById('aOut').innerHTML=html;document.getElementById('aOut').style.display='block';document.getElementById('aTbar').style.display='flex';
+  st.verbali++;updateCounters();saveToArchivio('Annotazione PG — '+oggetto,html,'atipg');
+}
+
+function buildCartelloForm(){return `
+  <div class="card-header"><div class="card-icon" style="background:rgba(224,82,82,0.15)">🚫</div><div><div class="card-title">Cartello Monitorio</div></div></div>
+  <div class="form-row cols-2">
+    <div><label>Destinatario</label><input type="text" id="caDest" placeholder="Titolare/Soggetto"></div>
+    <div><label>Attività/Luogo</label><input type="text" id="caLuogo" placeholder="Esercizio in Via..."></div>
+  </div>
+  <div><label>Violazione</label><input type="text" id="caViol" placeholder="es. Occupazione abusiva suolo pubblico"></div>
+  <div class="norma-box">
+    <div class="norma-box-title">🔍 Norma violata</div>
+    <input type="text" id="caNorma" placeholder="es. Art. 20 D.Lgs. 507/1993 / Ord. Sindacale 234/2026">
+  </div>
+  <div><label>Termine di adempimento</label><input type="text" id="caTerm" placeholder="es. entro le ore 18:00 del giorno odierno"></div>
+  <div class="ai-box">
+    <div class="ai-box-header"><div class="ai-spark">✨</div><div class="ai-box-title">AI — Testo ingiunzione</div></div>
+    <div class="ai-prompt-row"><input class="ai-input" id="caAiP" placeholder="Note aggiuntive..."><button class="btn btn-primary btn-sm" onclick="runCartAI()">⚡</button></div>
+    <div class="ai-loading" id="caAiL"><div class="dot-pulse"><span></span><span></span><span></span></div></div>
+  </div>
+  <div><label>Testo ingiunzione</label><textarea id="caT" rows="5"></textarea></div>
+  <div class="btn-group"><button class="btn btn-primary" onclick="generateCart()">📄 Genera Cartello</button></div>
+  <div class="doc-toolbar no-print" id="caTbar" style="display:none;margin-top:10px"><button class="btn btn-sm btn-green" onclick="exportPDF('caOut','Cartello Monitorio')">📥 PDF</button></div>
+  <div class="doc-output" id="caOut"></div>`;}
+
+async function runCartAI(){showLoad('caAiL',true);try{const r=await callAI(SYS,`Cartello monitorio PM Napoli. Violazione: ${document.getElementById('caViol').value}. Norma: ${document.getElementById('caNorma').value}. Termine: ${document.getElementById('caTerm').value}. Testo imperativo, citare norma, conseguenze inadempimento.`);document.getElementById('caT').value=r;toast('✅','success');}catch(e){if(e.message!=='No key')toast(e.message,'error');}finally{showLoad('caAiL',false);}}
+function generateCart(){
+  const html=`${makeDocHeader('',new Date().toLocaleDateString('it-IT'))}
+    <div style="font-weight:bold;text-align:center;font-size:16px;margin:12px 0;border:2px solid #c00;padding:8px;color:#c00">⚠ CARTELLO MONITORIO ⚠</div>
+    <p><b>A:</b> ${document.getElementById('caDest').value||'___'} — <b>RE:</b> ${document.getElementById('caLuogo').value||'___'}</p>
+    <p style="margin:8px 0"><b>Norma:</b> ${document.getElementById('caNorma').value||'___'}</p>
+    <div style="padding:14px;border:1px solid #999;margin:14px 0">${(document.getElementById('caT').value||'').replace(/\n/g,'<br>')}</div>
+    <p><b>Termine:</b> ${document.getElementById('caTerm').value||'___'}</p>
+    <div style="margin-top:24px;text-align:right">Napoli, ${new Date().toLocaleDateString('it-IT')}<br><br>___________________________<br><b>A.C. Ferrara — P.M. Napoli</b></div>`;
+  document.getElementById('caOut').innerHTML=html;document.getElementById('caOut').style.display='block';document.getElementById('caTbar').style.display='flex';
+  saveToArchivio('Cartello Monitorio — '+document.getElementById('caDest').value,html,'atipg');
+}
+
+function buildVerbaleAccForm(){return `
+  <div class="card-header"><div class="card-icon" style="background:rgba(155,124,244,0.15)">📝</div><div><div class="card-title">Verbale di Accertamento</div></div></div>
+  <div class="form-row cols-3">
+    <div><label>N°</label><input type="text" id="vaN"></div>
+    <div><label>Data</label><input type="date" id="vaD" value="${new Date().toISOString().split('T')[0]}"></div>
+    <div><label>Ora</label><input type="text" id="vaO"></div>
+  </div>
+  <div class="form-row cols-2">
+    <div><label>Luogo</label><input type="text" id="vaL"></div>
+    <div><label>Soggetto accertato</label><input type="text" id="vaS"></div>
+  </div>
+  <div class="norma-box"><div class="norma-box-title">🔍 Norma</div><input type="text" id="vaN2" placeholder="es. Art.17-bis D.Lgs.114/1998 — SCIA non presentata"></div>
+  <div class="ai-box">
+    <div class="ai-box-header"><div class="ai-spark">✨</div><div class="ai-box-title">AI — Sviluppa il verbale</div></div>
+    <div class="ai-prompt-row"><input class="ai-input" id="vaAiP" placeholder="Descrivi le violazioni e le circostanze..."><button class="btn btn-primary btn-sm" onclick="runVaAI()">⚡</button></div>
+    <div class="ai-loading" id="vaAiL"><div class="dot-pulse"><span></span><span></span><span></span></div></div>
+  </div>
+  <div><label>Corpo verbale</label><textarea id="vaT" rows="8"></textarea></div>
+  <div class="btn-group"><button class="btn btn-primary" onclick="generateVA()">📄 Genera Verbale</button></div>
+  <div class="doc-toolbar no-print" id="vaTbar" style="display:none;margin-top:10px"><button class="btn btn-sm btn-green" onclick="exportPDF('vaOut','Verbale Accertamento')">📥 PDF</button></div>
+  <div class="doc-output" id="vaOut"></div>`;}
+
+async function runVaAI(){showLoad('vaAiL',true);try{const r=await callAI(SYS,`Verbale accertamento PM Napoli. Norma: ${document.getElementById('vaN2').value}. Violazione: ${document.getElementById('vaAiP').value}. Luogo: ${document.getElementById('vaL').value}. Soggetto: ${document.getElementById('vaS').value}. Redigi corpo verbale completo: circostanze, norma violata, dichiarazioni trasgressore, proposta sanzionatoria.`);document.getElementById('vaT').value=r;toast('✅','success');}catch(e){if(e.message!=='No key')toast(e.message,'error');}finally{showLoad('vaAiL',false);}}
+function generateVA(){
+  const data=new Date(document.getElementById('vaD').value||Date.now()).toLocaleDateString('it-IT');
+  const sog=document.getElementById('vaS').value||'___';
+  const html=`${makeDocHeader(document.getElementById('vaN').value,data)}
+    <div style="font-weight:bold;text-align:center;margin-bottom:12px">VERBALE DI ACCERTAMENTO</div>
+    <p>In data <b>${data}</b> ore <b>${document.getElementById('vaO').value||'__:__'}</b> presso <b>${document.getElementById('vaL').value||'___'}</b></p>
+    <p>Soggetto: <b>${sog}</b> — Norma: <b>${document.getElementById('vaN2').value||'___'}</b></p>
+    <div style="margin:14px 0">${(document.getElementById('vaT').value||'').replace(/\n/g,'<br>')}</div>
+    <div style="margin-top:24px;text-align:right">Napoli, ${data}<br><b>A.C. Ferrara</b></div>`;
+  document.getElementById('vaOut').innerHTML=html;document.getElementById('vaOut').style.display='block';document.getElementById('vaTbar').style.display='flex';
+  st.verbali++;updateCounters();saveToArchivio('Verbale Acc. — '+sog,html,'atipg');
+}
+
+function buildComunicazioneAGForm(){return `
+  <div class="card-header"><div class="card-icon" style="background:rgba(224,82,82,0.15)">⚡</div><div><div class="card-title">Comunicazione Notizia di Reato — art.347 c.p.p.</div></div></div>
+  <div class="form-row cols-3">
+    <div><label>N°</label><input type="text" id="agN" placeholder="001/PG/2025"></div>
+    <div><label>Destinatario A.G.</label><input type="text" id="agDest" value="Procura della Repubblica presso il Tribunale di Napoli"></div>
+    <div><label>Data</label><input type="date" id="agD" value="${new Date().toISOString().split('T')[0]}"></div>
+  </div>
+  <div class="norma-box"><div class="norma-box-title">🔍 Reato ipotizzato / norma</div><input type="text" id="agNorma" placeholder="es. Art.474 c.p. — contraffazione / Art.29 DPR 380/2001 — abuso edilizio"></div>
+  <div class="ai-box">
+    <div class="ai-box-header"><div class="ai-spark">✨</div><div class="ai-box-title">AI — Redige la com. ex art.347 cpp</div></div>
+    <div class="ai-prompt-row"><input class="ai-input" id="agAiP" placeholder="Descrivi fatto, indagato, luogo, prove..."><button class="btn btn-primary btn-sm" onclick="runAgAI()">⚡</button></div>
+    <div class="ai-loading" id="agAiL"><div class="dot-pulse"><span></span><span></span><span></span></div></div>
+  </div>
+  <div><label>Corpo comunicazione</label><textarea id="agT" rows="8"></textarea></div>
+  <div class="btn-group"><button class="btn btn-primary" onclick="generateAG()">📄 Genera Comunicazione A.G.</button></div>
+  <div class="doc-toolbar no-print" id="agTbar" style="display:none;margin-top:10px"><button class="btn btn-sm btn-green" onclick="exportPDF('agOut','Comunicazione AG')">📥 PDF</button></div>
+  <div class="doc-output" id="agOut"></div>`;}
+
+async function runAgAI(){showLoad('agAiL',true);try{const r=await callAI(SYS,`Com. notizia di reato art.347 cpp alla Procura. Reato: ${document.getElementById('agNorma').value}. Fatto: ${document.getElementById('agAiP').value}. Com. completa: qualifica P.G., descrizione fatto, norme, attività compiute, allegati.`);document.getElementById('agT').value=r;toast('✅','success');}catch(e){if(e.message!=='No key')toast(e.message,'error');}finally{showLoad('agAiL',false);}}
+function generateAG(){
+  const data=new Date(document.getElementById('agD').value||Date.now()).toLocaleDateString('it-IT');
+  const norma=document.getElementById('agNorma').value||'___';
+  const html=`${makeDocHeader(document.getElementById('agN').value,data)}
+    <p style="margin-bottom:10px"><b>Alla:</b> ${document.getElementById('agDest').value}</p>
+    <div style="font-weight:bold;text-align:center;margin-bottom:12px">COMUNICAZIONE NOTIZIA DI REATO<br><span style="font-size:11px;font-weight:400">(art. 347 c.p.p.)</span></div>
+    <p><b>Reato:</b> ${norma}</p>
+    <div style="margin:14px 0">${(document.getElementById('agT').value||'').replace(/\n/g,'<br>')}</div>
+    <div style="margin-top:24px;text-align:right">Napoli, ${data}<br><br><b>A.C. Ferrara</b><br>P.M. Napoli — Agente P.G.</div>`;
+  document.getElementById('agOut').innerHTML=html;document.getElementById('agOut').style.display='block';document.getElementById('agTbar').style.display='flex';
+  st.verbali++;updateCounters();saveToArchivio('Com. A.G. — '+norma,html,'atipg');
+}
+
+// ─── SEQUESTRI ───
+function setSeqType(type){
+  const labels={merce:'📦 Sequestro Merce/Prodotti',attrezzature:'🔧 Sequestro Attrezzature',veicolo:'🚗 Sequestro Veicolo',area:'🏗️ Sequestro Area/Struttura',documenti:'📁 Sequestro Documenti'};
+  document.getElementById('seqForm').innerHTML=buildSeqForm(type,labels[type]||type);
+}
+
+function buildSeqForm(type,label){
+  const descPlaceholder={merce:'es. n. 150 borse in similpelle recanti marchi contraffatti Gucci, Louis Vuitton — valore stimato € 1.500',attrezzature:'es. n.1 girarrosto elettrico marca X, n.2 frigoriferi, n.1 impianto amplificazione...',veicolo:'es. Autovettura Fiat Panda tg. AA000AA — colore bianco — km 120.000',area:'es. Area di circa mq.30 occupata abusivamente con tavoli, sedie e fioriere',documenti:'es. n.3 raccoglitori contabilità, n.1 laptop marca Apple, n.2 hard disk esterni'}[type]||'Descrizione beni sequestrati';
+  return `
+  <div class="card-header"><div class="card-icon" style="background:rgba(224,82,82,0.15)">${label.split(' ')[0]}</div><div><div class="card-title">${label}</div><div class="card-desc">L'AI genera il verbale completo dalla norma</div></div></div>
+  <div class="form-row cols-3">
+    <div><label>N° Verbale Seq.</label><input type="text" id="sqN" placeholder="001/SEQ/2025"></div>
+    <div><label>Data</label><input type="date" id="sqD" value="${new Date().toISOString().split('T')[0]}"></div>
+    <div><label>Ora</label><input type="text" id="sqO" placeholder="11:30"></div>
+  </div>
+  <div class="form-row cols-2">
+    <div><label>Luogo del sequestro</label><input type="text" id="sqL" placeholder="Via, n., Napoli"></div>
+    <div><label>Soggetto intestatario</label><input type="text" id="sqS" placeholder="Nome / Ditta / Ignoto"></div>
+  </div>
+  <div><label>Descrizione beni</label><textarea id="sqDesc" rows="4" placeholder="${descPlaceholder}"></textarea></div>
+  <div class="norma-box">
+    <div class="norma-box-title">🔍 Norma — l'AI sviluppa il verbale completo</div>
+    <input type="text" id="sqNorma" placeholder="es. Art.474 c.p. + art.321 cpp / art.13 L.689/1981 + art.20 D.Lgs.507/1993">
+    <div class="chips" style="margin-top:8px">
+      <div class="chip" onclick="document.getElementById('sqNorma').value='Art. 474 c.p. + art. 321 c.p.p. + art. 16 L. 99/2009 (contraffazione)'">Merce contraffatta</div>
+      <div class="chip" onclick="document.getElementById('sqNorma').value='Art. 20 D.Lgs. 507/1993 + art. 13 L. 689/1981 (occ. suolo pubblico)'">Suolo pubblico</div>
+      <div class="chip" onclick="document.getElementById('sqNorma').value='Art. 29 DPR 380/2001 + art. 321 c.p.p. (abuso edilizio)'">Abuso edilizio</div>
+      <div class="chip" onclick="document.getElementById('sqNorma').value='Art. 17-bis D.Lgs. 114/1998 + art. 13 L. 689/1981 (commercio abusivo)'">Commercio abusivo</div>
+    </div>
+  </div>
+  <div class="ai-box">
+    <div class="ai-box-header"><div class="ai-spark">✨</div><div class="ai-box-title">AI — Redige il verbale di sequestro completo</div></div>
+    <div class="ai-prompt-row">
+      <input class="ai-input" id="sqAiP" placeholder="Note aggiuntive, circostanze, reazioni del soggetto...">
+      <button class="btn btn-primary btn-sm" onclick="runSeqAI()">⚡ Genera verbale</button>
+    </div>
+    <div class="ai-loading" id="sqAiL"><div class="dot-pulse"><span></span><span></span><span></span></div></div>
+  </div>
+  <div><label>Corpo verbale</label><textarea id="sqT" rows="10"></textarea></div>
+  <div><label>Custode/Affidatario</label><input type="text" id="sqC" placeholder="es. Affidato al soggetto in qualità di custode / Trasportato c/o deposito comunale"></div>
+  <div class="btn-group"><button class="btn btn-red" onclick="generateSeq()">🔒 Genera Verbale di Sequestro</button></div>
+  <div class="doc-toolbar no-print" id="sqTbar" style="display:none;margin-top:10px">
+    <button class="btn btn-sm btn-green" onclick="exportPDF('sqOut','Verbale Sequestro')">📥 PDF</button>
+    <button class="btn btn-sm btn-ghost" onclick="window.print()">🖨️</button>
+  </div>
+  <div class="doc-output" id="sqOut"></div>`;}
+
+async function runSeqAI(){
+  showLoad('sqAiL',true);
+  try{const r=await callAI(SYS,`Verbale sequestro PM Napoli. Norma: ${document.getElementById('sqNorma').value}. Beni: ${document.getElementById('sqDesc').value}. Intestatario: ${document.getElementById('sqS').value}. Luogo: ${document.getElementById('sqL').value}. Note: ${document.getElementById('sqAiP').value}. Redigi: 1)qualifica operatori 2)circostanze e motivazioni 3)descrizione beni 4)riferimento normativo con motivazione giuridica 5)diritti del soggetto (opposizione/ricorso) 6)sezione firma custode.`);
+  document.getElementById('sqT').value=r;toast('✅ Verbale AI generato','success');}
+  catch(e){if(e.message!=='No key')toast(e.message,'error');}
+  finally{showLoad('sqAiL',false);}
+}
+
+function generateSeq(){
+  const num=document.getElementById('sqN').value||'001/SEQ/2025';
+  const data=new Date(document.getElementById('sqD').value||Date.now()).toLocaleDateString('it-IT');
+  const ora=document.getElementById('sqO').value||'__:__';
+  const luogo=document.getElementById('sqL').value||'___';
+  const sog=document.getElementById('sqS').value||'___';
+  const desc=(document.getElementById('sqDesc').value||'').replace(/\n/g,'<br>');
+  const norma=document.getElementById('sqNorma').value||'___';
+  const testo=(document.getElementById('sqT').value||'').replace(/\n/g,'<br>');
+  const custode=document.getElementById('sqC').value||'___';
+  const html=`${makeDocHeader(num,data)}
+    <div style="font-weight:bold;text-align:center;font-size:14px;margin:12px 0;border:2px solid #333;padding:8px">VERBALE DI SEQUESTRO<br><span style="font-size:11px;font-weight:400">${norma}</span></div>
+    <p>L'anno ${new Date().getFullYear()}, il giorno <b>${data}</b> alle ore <b>${ora}</b>, in <b>${luogo}</b>, il sottoscritto <b>A.C. Ferrara</b>, Agente di P.G.:</p>
+    <p style="margin:10px 0"><b>PROCEDE AL SEQUESTRO</b> di beni di proprietà/possesso di: <b>${sog}</b></p>
+    <div style="margin:10px 0;padding:10px;border:1px solid #ccc"><b>BENI SEQUESTRATI:</b><br>${desc}</div>
+    <div style="margin:12px 0"><b>MOTIVAZIONE:</b><br>${testo}</div>
+    <p><b>CUSTODIA:</b> ${custode}</p>
+    <p style="margin:10px 0;font-size:12px;font-style:italic">Si avverte il soggetto che avverso il presente provvedimento è ammessa opposizione al Prefetto/Procura entro i termini di legge.</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:32px;margin-top:32px;text-align:center;font-size:12px">
+      <div>Il Custode (accetta/rifiuta)<br><br><br>___________________________<br>${sog}</div>
+      <div>L'Agente Operante<br><br><br>___________________________<br><b>A.C. Ferrara</b><br>P.M. Napoli</div>
+    </div>${makeDocFooter()}`;
+  document.getElementById('sqOut').innerHTML=html;document.getElementById('sqOut').style.display='block';document.getElementById('sqTbar').style.display='flex';
+  st.seq++;updateCounters();saveToArchivio('Sequestro n.'+num+' — '+sog,html,'sequestri');
+  toast('🔒 Verbale di sequestro generato','success');
+}
+
+// ─── MODULISTICA ───
+async function runModuloPreset(p){document.getElementById('moduloAiPrompt').value=p;await runModuloAI();}
+async function runModuloAI(){
+  const p=document.getElementById('moduloAiPrompt').value;if(!p)return;
+  showLoad('moduloAiLoading',true);document.getElementById('moduloAiOutput').style.display='none';
+  try{const r=await callAI(SYS+'\nGenera il modulo completo pronto alla compilazione. Usa [CAMPO] per i dati da riempire.',p+' — P.M. Napoli, formale, completo.');
+  document.getElementById('moduloAiOutput').textContent=r;document.getElementById('moduloAiOutput').style.display='block';
+  document.getElementById('moduloBtnGroup').style.display='block';toast('✅ Modulo generato','success');}
+  catch(e){if(e.message!=='No key')toast(e.message,'error');}
+  finally{showLoad('moduloAiLoading',false);}
+}
+function useModuloOutput(){
+  const txt=document.getElementById('moduloAiOutput').textContent;
+  const html=`${makeDocHeader('',new Date().toLocaleDateString('it-IT'))}<div class="doc-body">${txt.replace(/\n/g,'<br>')}</div><div class="doc-firma"><br>___________________________<br><b>${cfg.firma}</b></div>`;
+  document.getElementById('moduloOutput').innerHTML=html;document.getElementById('moduloOutput').style.display='block';document.getElementById('moduloToolbar').style.display='flex';
+  saveToArchivio('Modulo — '+txt.substring(0,50)+'...',html,'modulistica');
+}
+
+// ─── STATISTICHE + GRAFICI ───
+let chartBarInst=null,chartDoughnutInst=null,chartLineInst=null;
+let periodi=[]; let periodoCount=0;
+const CHART_COLORS=['#4f8ef7','#34c97a','#f5a623','#e05252','#9b7cf4','#00c9ff'];
+const CHART_FIELDS=['verbali','controlli','sequestri','chiusure','segnalazioni','esposti'];
+const CHART_LABELS=['Verbali','Controlli','Sequestri','Chiusure','Segl.AG','Esposti'];
+
+function addPeriodo(data){
+  const id=++periodoCount;
+  const d=data||{periodo:'',verbali:0,controlli:0,sequestri:0,chiusure:0,segnalazioni:0,esposti:0};
+  periodi.push({id,...d});
+  renderPeriodiList();
+}
+function removePeriodo(id){
+  periodi=periodi.filter(p=>p.id!==id);renderPeriodiList();
+  if(periodi.length>0)renderAllCharts();
+  else{document.getElementById('chartsArea').style.display='none';document.getElementById('kpiGrid').style.display='none';}
+}
+function renderPeriodiList(){
+  const el=document.getElementById('periodiList');
+  if(!periodi.length){el.innerHTML='<div style="color:var(--text3);font-size:12px;padding:8px 0;margin-bottom:10px">Nessun periodo. Clicca ➕ Aggiungi periodo.</div>';return;}
+  el.innerHTML=periodi.map(p=>`
+    <div class="period-entry">
+      <div class="period-entry-header"><span class="period-label">📅 Periodo ${p.id}</span><button class="period-del" onclick="removePeriodo(${p.id})">✕</button></div>
+      <div class="form-row cols-3" style="margin-bottom:8px">
+        <div><label>Nome periodo</label><input type="text" id="pN${p.id}" value="${p.periodo}" placeholder="es. Gen 2025" oninput="syncPeriodo(${p.id})" style="margin-bottom:0"></div>
+        <div><label>Verbali</label><input type="number" id="pV${p.id}" value="${p.verbali}" oninput="syncPeriodo(${p.id})" style="margin-bottom:0"></div>
+        <div><label>Controlli</label><input type="number" id="pC${p.id}" value="${p.controlli}" oninput="syncPeriodo(${p.id})" style="margin-bottom:0"></div>
+      </div>
+      <div class="form-row cols-3">
+        <div><label>Sequestri</label><input type="number" id="pS${p.id}" value="${p.sequestri}" oninput="syncPeriodo(${p.id})" style="margin-bottom:0"></div>
+        <div><label>Chiusure</label><input type="number" id="pCh${p.id}" value="${p.chiusure}" oninput="syncPeriodo(${p.id})" style="margin-bottom:0"></div>
+        <div><label>Segnalazioni A.G.</label><input type="number" id="pAg${p.id}" value="${p.segnalazioni}" oninput="syncPeriodo(${p.id})" style="margin-bottom:0"></div>
+      </div>
+      <div style="margin-top:8px"><label>Esposti evasi</label><input type="number" id="pE${p.id}" value="${p.esposti}" oninput="syncPeriodo(${p.id})" style="margin-bottom:0"></div>
+    </div>`).join('');
+}
+function syncPeriodo(id){
+  const p=periodi.find(x=>x.id===id);if(!p)return;
+  p.periodo=document.getElementById('pN'+id).value||'Periodo '+id;
+  p.verbali=+document.getElementById('pV'+id).value||0;
+  p.controlli=+document.getElementById('pC'+id).value||0;
+  p.sequestri=+document.getElementById('pS'+id).value||0;
+  p.chiusure=+document.getElementById('pCh'+id).value||0;
+  p.segnalazioni=+document.getElementById('pAg'+id).value||0;
+  p.esposti=+document.getElementById('pE'+id).value||0;
+}
+function renderAllCharts(){
+  periodi.forEach(p=>syncPeriodo(p.id));
+  if(!periodi.length){toast('⚠️ Aggiungi almeno un periodo','error');return;}
+  document.getElementById('chartsArea').style.display='block';
+  document.getElementById('kpiGrid').style.display='grid';
+  const last=periodi[periodi.length-1];
+  document.getElementById('kpiV').textContent=last.verbali;
+  document.getElementById('kpiC').textContent=last.controlli;
+  document.getElementById('kpiS').textContent=last.sequestri;
+  document.getElementById('kpiCh').textContent=last.chiusure;
+  document.getElementById('kpiAg').textContent=last.segnalazioni;
+  document.getElementById('kpiE').textContent=last.esposti;
+  const gc='rgba(255,255,255,0.06)',tc='#9090a8';
+  const baseOpts={responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:tc,font:{family:'DM Sans',size:11}}}}};
+  // BAR
+  if(chartBarInst)chartBarInst.destroy();
+  chartBarInst=new Chart(document.getElementById('chartBar'),{type:'bar',
+    data:{labels:CHART_LABELS,datasets:[{label:last.periodo||'Periodo',data:CHART_FIELDS.map(f=>last[f]),backgroundColor:CHART_COLORS.map(c=>c+'bb'),borderColor:CHART_COLORS,borderWidth:1,borderRadius:6,borderSkipped:false}]},
+    options:{...baseOpts,scales:{x:{ticks:{color:tc,font:{size:10}},grid:{color:gc}},y:{ticks:{color:tc,font:{size:10}},grid:{color:gc},beginAtZero:true}}}
+  });
+  // DOUGHNUT
+  const totals=CHART_FIELDS.map(f=>periodi.reduce((s,p)=>s+(p[f]||0),0));
+  if(chartDoughnutInst)chartDoughnutInst.destroy();
+  chartDoughnutInst=new Chart(document.getElementById('chartDoughnut'),{type:'doughnut',
+    data:{labels:CHART_LABELS,datasets:[{data:totals,backgroundColor:CHART_COLORS.map(c=>c+'cc'),borderColor:CHART_COLORS,borderWidth:2,hoverOffset:8}]},
+    options:{...baseOpts,cutout:'62%',plugins:{...baseOpts.plugins,tooltip:{callbacks:{label:ctx=>`${ctx.label}: ${ctx.raw} (${Math.round(ctx.raw/totals.reduce((a,b)=>a+b,0)*100)||0}%)`}}}}
+  });
+  // LINE (multi-periodo)
+  const tc2=document.getElementById('trendCardWrapper');
+  if(periodi.length>1){
+    tc2.style.display='block';
+    const pLabels=periodi.map(p=>p.periodo||'P'+p.id);
+    const ds=CHART_FIELDS.map((f,i)=>({label:CHART_LABELS[i],data:periodi.map(p=>p[f]||0),borderColor:CHART_COLORS[i],backgroundColor:CHART_COLORS[i]+'22',tension:0.4,pointRadius:4,fill:false,borderWidth:2}));
+    if(chartLineInst)chartLineInst.destroy();
+    chartLineInst=new Chart(document.getElementById('chartLine'),{type:'line',data:{labels:pLabels,datasets:ds},
+      options:{...baseOpts,scales:{x:{ticks:{color:tc,font:{size:10}},grid:{color:gc}},y:{ticks:{color:tc,font:{size:10}},grid:{color:gc},beginAtZero:true}}}
+    });
+  } else { tc2.style.display='none'; }
+  toast('📊 Grafici aggiornati','success');
+}
+function handleCSV(input){
+  const file=input.files?.[0];if(!file)return;
+  const r=new FileReader();
+  r.onload=e=>{
+    const t=e.target.result,sep=t.includes(';')?';':',';
+    const lines=t.split('\n').filter(l=>l.trim());
+    const headers=lines[0].split(sep).map(h=>h.trim().toLowerCase());
+    const rows=lines.slice(1).map(l=>l.split(sep).map(c=>c.trim()));
+    const fc=(keys)=>{for(const k of keys){const i=headers.findIndex(h=>h.includes(k));if(i>=0)return i;}return -1;};
+    rows.forEach((row,idx)=>{
+      addPeriodo({periodo:row[fc(['periodo','mese','month','data'])]||`Periodo ${idx+1}`,verbali:+row[fc(['verbal','sanzione','multa'])]||0,controlli:+row[fc(['control','ispezione'])]||0,sequestri:+row[fc(['sequestro','seq'])]||0,chiusure:+row[fc(['chiusura','sospensione'])]||0,segnalazioni:+row[fc(['segnalazione','ag','procura'])]||0,esposti:+row[fc(['esposto','istanza'])]||0});
+    });
+    renderAllCharts();toast('📂 CSV: '+rows.length+' periodi importati','success');
+  };
+  r.readAsText(file);
+}
+async function generateStatsAI(){
+  periodi.forEach(p=>syncPeriodo(p.id));
+  if(!periodi.length){toast('⚠️ Aggiungi dati','error');return;}
+  showLoad('statAiLoading',true);
+  const uo=document.getElementById('statUO').value;
+  const extra=document.getElementById('statAiExtra').value;
+  const dStr=periodi.map(p=>`${p.periodo}: Verbali ${p.verbali}, Controlli ${p.controlli}, Sequestri ${p.sequestri}, Chiusure ${p.chiusure}, Segnalazioni AG ${p.segnalazioni}, Esposti ${p.esposti}`).join('\n');
+  try{const r=await callAI(SYS,`Report statistico per ${uo}.\nDati:\n${dStr}\nNote: ${extra}\nRelazione dirigenziale formale con analisi${periodi.length>1?' e confronto tra periodi':''}.`);generateStatsDoc(r);}
+  catch(e){if(e.message!=='No key')toast(e.message,'error');}
+  finally{showLoad('statAiLoading',false);}
+}
+function generateStatsDoc(narrativo){
+  periodi.forEach(p=>syncPeriodo(p.id));
+  const uo=document.getElementById('statUO').value;
+  const pStr=periodi.length===1?periodi[0].periodo:(periodi[0]?.periodo+' — '+periodi[periodi.length-1]?.periodo)||'[PERIODO]';
+  const totRow=(label,field)=>`<tr><td style="padding:7px 10px;border:1px solid #ccc">${label}</td>${periodi.map(p=>`<td style="padding:7px 10px;border:1px solid #ccc;text-align:center;font-weight:bold">${p[field]||0}</td>`).join('')}${periodi.length>1?`<td style="padding:7px 10px;border:1px solid #ccc;text-align:center;background:#f0f0f0;font-weight:bold">${periodi.reduce((s,p)=>s+(p[field]||0),0)}</td>`:''}</tr>`;
+  const colH=periodi.map(p=>`<th style="padding:7px 10px;border:1px solid #ccc;background:#e8e8e8">${p.periodo||'P'}</th>`).join('')+(periodi.length>1?'<th style="padding:7px 10px;border:1px solid #ccc;background:#d4d4d4">TOTALE</th>':'');
+  const html=`${makeDocHeader('',new Date().toLocaleDateString('it-IT'))}
+    <div style="font-weight:bold;text-align:center;font-size:15px;margin:14px 0">REPORT STATISTICO OPERATIVO<br><span style="font-size:12px;font-weight:400">Periodo: ${pStr} — ${uo}</span></div>
+    <table style="width:100%;border-collapse:collapse;margin:16px 0;font-size:12px">
+      <tr style="background:#e8e8e8"><th style="padding:7px 10px;border:1px solid #ccc;text-align:left">Indicatore</th>${colH}</tr>
+      ${totRow('Verbali emessi','verbali')}${totRow('Controlli effettuati','controlli')}${totRow('Sequestri','sequestri')}${totRow('Chiusure attività','chiusure')}${totRow('Segnalazioni A.G.','segnalazioni')}${totRow('Esposti/Istanze evasi','esposti')}
+    </table>
+    <div style="margin:14px 0">${(narrativo||'[Inserire analisi narrativa]').replace(/\n/g,'<br>')}</div>
+    <div style="margin-top:28px;text-align:right">Il Responsabile<br><br>___________________________<br><b>${cfg.firma}</b></div>${makeDocFooter()}`;
+  document.getElementById('statOutput').innerHTML=html;document.getElementById('statOutput').style.display='block';document.getElementById('statToolbar').style.display='flex';
+  saveToArchivio('Report Statistico — '+pStr,html,'statistiche');
+}
+
+// ─── AI LIBERA ───
+const aiPresets={
+  annotazione_pg:'Redigi un\'annotazione di Polizia Giudiziaria (art.357 cpp) per il seguente fatto:',
+  verbale_seq:'Redigi un verbale di sequestro completo per il seguente caso (indicare tipo di sequestro, norma, beni):',
+  sit:'Redigi un verbale di sommarie informazioni testimoniali (art.351 cpp) per:',
+  cartello:'Redigi un cartello monitorio della Polizia Municipale per la seguente violazione:',
+  relazione:'Redigi una relazione di servizio formale per il seguente fatto:',
+  diffida:'Redigi una diffida formale della Polizia Municipale per:',
+  parere:'Fornisci un parere normativo dettagliato sulla seguente questione:',
+  comunicazione_ag:'Redigi una comunicazione notizia di reato ex art.347 cpp alla Procura per:'
+};
+function setAiLiberoPreset(k){document.getElementById('aiLiberoInput').value=aiPresets[k]||'';document.getElementById('aiLiberoInput').focus();}
+function clearAiLibero(){document.getElementById('aiLiberoInput').value='';document.getElementById('aiLiberoNorma').value='';document.getElementById('aiLiberoOutput').style.display='none';document.getElementById('aiLiberoActions').style.display='none';}
+
+async function runAiLibero(){
+  const input=document.getElementById('aiLiberoInput').value;if(!input.trim())return;
+  const norma=document.getElementById('aiLiberoNorma').value;
+  showLoad('aiLiberoLoading',true);document.getElementById('aiLiberoOutput').style.display='none';document.getElementById('aiLiberoActions').style.display='none';
+  try{const r=await callAI(SYS,norma?`[NORMA: ${norma}]\n\n${input}`:input);
+  st.lastAI=r;document.getElementById('aiLiberoOutput').textContent=r;document.getElementById('aiLiberoOutput').style.display='block';document.getElementById('aiLiberoActions').style.display='block';
+  toast('✅ Elaborazione completata','success');}
+  catch(e){if(e.message!=='No key')toast('Errore: '+e.message,'error');}
+  finally{showLoad('aiLiberoLoading',false);}
+}
+function sendAiLiberoToDoc(){document.getElementById('docCorpo').value=st.lastAI;switchModule('documenti');toast('📄 Inviato a Documenti','success');}
+function copyAiLibero(){navigator.clipboard.writeText(st.lastAI||'');toast('📋 Copiato','success');}
+
+// ─── SETTINGS ───
+function openSettings(){applyConfigToInputs();document.getElementById('settingsModal').classList.add('open');}
+function closeSettings(){document.getElementById('settingsModal').classList.remove('open');}
+
+// ─── NAVIGATION ───
+function switchModule(id){
+  document.querySelectorAll('.module').forEach(m=>m.classList.remove('active'));
+  document.getElementById('mod-'+id).classList.add('active');
+  const labels={dashboard:'Dashboard',documenti:'Documenti Liberi',atipg:'Atti P.G.',sequestri:'Sequestri',modulistica:'Modulistica',statistiche:'Statistiche',archivio:'Archivio',ai_libre:'AI Libera'};
+  document.getElementById('topbarTitle').textContent=labels[id]||id;
+  document.querySelectorAll('.nav-item').forEach(n=>{
+    n.classList.remove('active');
+    if(n.textContent.trim().startsWith(labels[id]||'___')) n.classList.add('active');
+  });
+}
+
+// ─── HELPERS ───
+function showLoad(id,show){const el=document.getElementById(id);if(el)el.style.display=show?'flex':'none';}
+function toast(msg,type='success'){const t=document.getElementById('toast');t.textContent=msg;t.className='show '+(type||'');setTimeout(()=>t.className='',3000);}
+function copyEl(id){const el=document.getElementById(id);if(el){navigator.clipboard.writeText(el.innerText||'');toast('📋 Copiato','success');}}
+function toggleEdit(id){const el=document.getElementById(id);if(!el)return;el.contentEditable=el.contentEditable==='true'?'false':'true';el.style.outline=el.contentEditable==='true'?'2px solid var(--accent)':'none';toast(el.contentEditable==='true'?'✏️ Modifica attiva':'✅ Modifiche salvate','success');}
+function setupDrag(id,handler){const el=document.getElementById(id);if(!el)return;el.addEventListener('dragover',e=>{e.preventDefault();el.classList.add('dragover');});el.addEventListener('dragleave',()=>el.classList.remove('dragover'));el.addEventListener('drop',e=>{e.preventDefault();el.classList.remove('dragover');handler(e);});}
+</script>
+</body>
+</html>
